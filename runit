@@ -1,0 +1,2 @@
+acme --cpu 65C02 -f cbm -o gol1.prg gol1.asm
+x16 -prg gol1.prg
