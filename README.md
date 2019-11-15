@@ -1,25 +1,33 @@
-** game of life for X16 ** 
-
-(maybe, evenutally)
-
-gol1.asm	:	the main routine
+# game of life for Commander X16 
 
 
-readlist.inc	:	read the list of orders and execute them
+* gol1.asm
 
-makelist.inc	: 	long but pointless route to illustrate error
-			eventually this will compute the new orders
+ > Main routine, defines zero page addrs etc
 
-grid.grid	:	dots are emtpy space, stars are filled space
+* readlist.inc
 
-grid.py		:	turn grid.grid into grid.inc
+ > read the actions list and implement into VERA
 
-runit		:	not a make file, but builds the prg
+* makelist.inc
 
-grid.inc format:
+ > add an order to a list 'storeaction'
+ > also 'initlist' resets the action list
 
-[0,1] off or on, vera high, vera mid, vera lo
+* grid.grid
 
-So the grid.py computes the "on" orders and stores the vera addresses that will be used
+ > starting grid pattern
 
+* grid.py
+
+ > convert grid.grid to grid.inc
+
+* runit
+
+ > run python, compile, and run program
+
+### grid.inc format:
+
+[CHR] character to store (space or *), X, Y
+So the grid.py computes the "on" orders and stores the coordinates to use use
 List is terminated with FF FF FF
