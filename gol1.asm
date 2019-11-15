@@ -15,6 +15,9 @@ CursorY = zr+8
 Character = zr+9
 Colour = zr+10
 
+ach = zr+12
+
+
 
 !src "vera.inc"
 *=$0801			; Assembled code should start at $0801
@@ -38,6 +41,29 @@ CHROUT=$FFD2		; CHROUT outputs a character (C64 Kernal API)
 CHRIN=$FFCF		; CHRIN read from default input
 CURRENT=$0
 
+top:
+	ldx #0
+	ldy #9 
+	stx CursorX
+	sty CursorY
+	lda #$2A 	; star
+	sta Character
+	lda #3		; light blue
+	sta Colour
+	jsr veraprint
+	ldx #39
+	ldy #9
+	stx CursorX
+	sty CursorY
+	jsr veraprint
+	ldx #0
+	ldy #1
+	stx CursorX
+	sty CursorY
+	jsr veraprint
+	jsr readlist
+	rts
+
 	ldx	#0	; X register is used to index the string
 loop:
 	lda	.string,x ; Load character from string into A reg
@@ -48,7 +74,6 @@ loop:
 end:
 	jsr	CHRIN	; Read input until Enter/Return is pressed
 
-	; test the X Y addressing  -- using Y to store char value
 	lda #32 	; space
 	sta Character
 	lda #3		; light blue
@@ -59,9 +84,47 @@ end:
 	sta Character
 	jsr fullscreen
 
+	lda #32 	; space
+	sta Character
+	lda #3		; light blue
+	sta Colour
+	jsr fullscreen
+
+	lda #$2A 	; star
+	sta Character
+
+	jsr	CHRIN	; Read input until Enter/Return is pressed
+	jsr	CHRIN	; Read input until Enter/Return is pressed
+
+	jsr readlist
+
+	jsr	CHRIN	; Read input until Enter/Return is pressed
+	jsr	CHRIN	; Read input until Enter/Return is pressed
 
 	rts
 
+readlist:
+	lda .actions
+	ldy #0
+readloop:
+	lda .actions,y
+	cmp #255
+	bne outputaction
+	rts
+outputaction:
+	lda .actions,y
+	sta verahi
+	iny
+	lda .actions,y
+	sta veramid
+	iny
+	lda .actions,y
+	sta veralo
+	lda Character
+	sta veradat
+	iny
+	jmp readloop
+	
 fullscreen:
 	lda #79
 	sta CursorX
@@ -139,4 +202,4 @@ sexy:
 		rts
 
 .string !pet	"testing x y coords - waiting for enter...",13,0
-.actions !fill 19200,0
+!src "grid.inc"
