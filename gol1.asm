@@ -41,49 +41,6 @@ CHROUT=$FFD2		; CHROUT outputs a character (C64 Kernal API)
 CHRIN=$FFCF		; CHRIN read from default input
 CURRENT=$0
 
-top:
-	ldx #0
-	ldy #9 
-	stx CursorX
-	sty CursorY
-	lda #$2A 	; star
-	sta Character
-	lda #3		; light blue
-	sta Colour
-	jsr veraprint
-	ldx #39
-	ldy #9
-	stx CursorX
-	sty CursorY
-	jsr veraprint
-	ldx #0
-	ldy #1
-	stx CursorX
-	sty CursorY
-	jsr veraprint
-	jsr readlist
-	rts
-
-	ldx	#0	; X register is used to index the string
-loop:
-	lda	.string,x ; Load character from string into A reg
-	beq	end	; If the character was 0, jump to end label
-	jsr	CHROUT	; Output character stored in A register
-	inx		; Increment X register
-	jmp	loop	; Jump back to loop label to print next char
-end:
-	jsr	CHRIN	; Read input until Enter/Return is pressed
-
-	lda #32 	; space
-	sta Character
-	lda #3		; light blue
-	sta Colour
-	jsr fullscreen
-
-	lda #$2A 	; star
-	sta Character
-	jsr fullscreen
-
 	lda #32 	; space
 	sta Character
 	lda #3		; light blue
