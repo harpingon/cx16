@@ -14,6 +14,12 @@
  > add an order to a list 'storeaction'
  > also 'initlist' resets the action list
 
+* algo.inc
+
+ > The Life algorithm. Read all cells, compute
+ > neighbor count and, if cell changes state
+ > use 'storeaction' to implement the change
+   
 * grid.grid
 
  > starting grid pattern
