@@ -41,6 +41,7 @@ CHROUT=$FFD2		; CHROUT outputs a character (C64 Kernal API)
 CHRIN=$FFCF		; CHRIN read from default input
 CURRENT=$0
 
+	jsr readlist
 	lda #32 	; space
 	sta Character
 	lda #3		; light blue
@@ -61,26 +62,59 @@ CURRENT=$0
 	rts
 
 readlist:
-	lda .actions
+	lda #<.actions
+	sta ach
+	ldx #>.actions
+	stx ach+1
 	ldy #0
 readloop:
-	lda .actions,y
+	lda (ach),y
 	cmp #255
 	bne outputaction
 	rts
 outputaction:
-	lda .actions,y
+	iny
+	beq pageinc1
+ret1:
+	lda (ach),y
 	sta verahi
 	iny
-	lda .actions,y
+	beq pageinc2
+ret2:
+	lda (ach),y
 	sta veramid
 	iny
-	lda .actions,y
+	beq pageinc3
+ret3:
+	lda (ach),y
 	sta veralo
 	lda Character
 	sta veradat
 	iny
+	beq pageinc4
+ret4:
 	jmp readloop
+
+pageinc1:
+	lda ach
+	inc 
+	sta ach
+	jmp ret1
+pageinc2:
+	lda ach
+	inc 
+	sta ach
+	jmp ret2
+pageinc3:
+	lda ach
+	inc 
+	sta ach
+	jmp ret3
+pageinc4:
+	lda ach
+	inc 
+	sta ach
+	jmp ret4
 	
 fullscreen:
 	lda #79
