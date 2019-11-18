@@ -1,3 +1,7 @@
+** game of life for X16 ** 
+
+(maybe, evenutally)
+
 gol1.asm	:	the main routine
 
 
