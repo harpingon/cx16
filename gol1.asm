@@ -22,6 +22,9 @@ ax = zr+15
 ay = zr+16
 nn = zr+17		;neighbor count
 
+bx = zr+20		; hold current cursor for checking square
+by = zr+21
+
 !src "vera.inc"
 *=$0801			; Assembled code should start at $0801
 			; (where BASIC programs start)
@@ -56,10 +59,21 @@ start:
 
 	jsr readlist	; initial board state
 
+	jsr CHRIN
+	jsr CHRIN
+
+	jsr makelist
+
 	rts
 
+
+
 !src "readlist.inc"
+
+!src "makelist.inc"		; removing this src, even though its labels are never called
+				; will make it work gagin
 	
+
 fullscreen:
 	lda #79
 	sta CursorX
@@ -138,3 +152,4 @@ sexy:
 
 .string !pet	"testing x y coords - waiting for enter...",13,0
 !src "grid.inc"
+
