@@ -14,6 +14,7 @@ grid.grid	:	dots are emtpy space, stars are filled space
 
 grid.py		:	turn grid.grid into grid.inc
 
+runit		:	not a make file, but builds the prg
 
 grid.inc format:
 
