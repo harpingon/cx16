@@ -62,8 +62,6 @@ start:
 	jsr CHRIN
 	jsr CHRIN
 
-	jsr makelist
-
 	rts
 
 
