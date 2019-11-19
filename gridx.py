@@ -14,7 +14,11 @@ for line in f:
             hx="%0.2X" % x
             hy="%0.2X" % y
             # print("!byte $1,${},${},${}".format(ha[0:2],ha[2:4],ha[4:6]))
-            print("!byte $1,${},${},${}".format('10',hy,hx))
-        x+=2
+            print("lda #{}".format(x))
+            print("sta CursorX")
+            print("lda #{}".format(y))
+            print("sta CursorY")
+            print("jsr veraprint")
+        x+=1
     y+=1
-print("!byte $FF,$FF,$FF")
+print("rts")

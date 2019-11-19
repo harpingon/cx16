@@ -14,7 +14,7 @@ for line in f:
             hx="%0.2X" % x
             hy="%0.2X" % y
             # print("!byte $1,${},${},${}".format(ha[0:2],ha[2:4],ha[4:6]))
-            print("!byte $1,${},${},${}".format('10',hy,hx))
-        x+=2
+            print("!byte $2A,${},${}".format(hx,hy))
+        x+=1
     y+=1
 print("!byte $FF,$FF,$FF")

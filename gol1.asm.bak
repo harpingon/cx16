@@ -57,13 +57,7 @@ start:
 	lda #$2A	; star
 	sta Character
 
-	lda #2 		; red
-	lda #7 		; yellow
-	sta Colour
-
-	jsr veraprint
-
-	jsr readlist
+	jsr readlist	; initial board state
 
 	jsr CHRIN
 	jsr CHRIN
@@ -131,15 +125,27 @@ SetVeraADDR:
 		rts
 
 sexy:
-		lda CursorX
-		asl  ; mul 2
-		tax ; put lo byte into x
-		lda #0
-		rol  ; get 9th bit
-		adc CursorY ; add Y*256 effectivly
-		tay ; put mi byte into y
-		lda #$10 ; set incremement
-		jsr SetVeraADDR
+
+                stz z_d                     
+                lda CursorY     
+                clc
+                adc z_e                         ;Add carry to M byte
+                tay
+                lda z_d
+                adc #0                          ;Add carry to H byte
+                sta z_d
+                stz z_e
+                lda CursorX     
+                asl
+                rol z_e
+                tax                        
+                tya                       
+                adc z_e
+                tay                      
+                lda z_d                 
+                adc #$10               
+
+                jsr SetVeraADDR        
 		rts
 
 .string !pet	"testing x y coords - waiting for enter...",13,0

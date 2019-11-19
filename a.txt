@@ -1,0 +1,886 @@
+
+; ******** Source: gol1.asm
+     1                          zr = $20          ;get zome zero page vars to work with
+     2                          
+     3                          z_hl = zr         ;hl Pair
+     4                          z_l  = zr
+     5                          z_h  = zr+1
+     6                          
+     7                          z_de = zr+4       ;de pair
+     8                          z_e  = zr+4
+     9                          z_d  = zr+5
+    10                          
+    11                          z_as = zr+6       ;hold a
+    12                          
+    13                          CursorX = zr+7
+    14                          CursorY = zr+8
+    15                          Character = zr+9
+    16                          Colour = zr+10
+    17                          
+    18                          ach = zr+12
+    19                          
+    20                          aa = zr+14 		;to store regs that would be sent to vera to build action list
+    21                          ax = zr+15
+    22                          ay = zr+16
+    23                          nn = zr+17		;neighbor count
+    24                          
+    25                          bx = zr+20		; hold current cursor for checking square
+    26                          by = zr+21
+    27                          
+
+; ******** Source: vera.inc
+     1                          ; License: Public Domain
+     2                          
+     3                          verareg =$9f20
+     4                          veralo  = verareg+0
+     5                          veramid = verareg+1
+     6                          verahi  = verareg+2
+     7                          veradat = verareg+3
+     8                          veradat2= verareg+4
+     9                          veractl = verareg+5
+    10                          veraien = verareg+6
+    11                          veraisr = verareg+7
+    12                          
+    13                          vreg_cmp  = $F0000
+    14                          vreg_pal  = $F1000
+    15                          vreg_lay1 = $F2000
+    16                          vreg_lay2 = $F3000
+    17                          vreg_spr  = $F4000
+    18                          vreg_sprd = $F5000
+    19                          
+    20                          AUTO_INC_1 = $100000
+    21                          
+    22                          !macro vset .addr {
+    23                          	lda #<(.addr >> 16) | $10
+    24                          	sta verahi
+    25                          	lda #<(.addr >> 8)
+    26                          	sta veramid
+    27                          	lda #<(.addr)
+    28                          	sta veralo
+    29                          }
+    30                          
+    31                          !macro vstore .addr {
+    32                          	pha
+    33                          	+vset .addr
+    34                          	pla
+    35                          	sta veradat
+    36                          }
+    37                          
+    38                          !macro vload .addr {
+    39                          	+vset .addr
+    40                          	lda veradat
+    41                          }
+    42                          
+    43                          !macro sprset .offset {
+    44                          	lda #<(vreg_sprd >> 16) | $10
+    45                          	sta verahi
+    46                          	txa
+    47                          	lsr
+    48                          	lsr
+    49                          	lsr
+    50                          	lsr
+    51                          	lsr
+    52                          	clc
+    53                          	adc #<(vreg_sprd + .offset >> 8)
+    54                          	sta veramid
+    55                          	txa
+    56                          	asl
+    57                          	asl
+    58                          	asl
+    59                          	clc
+    60                          	adc #<((vreg_sprd + .offset))
+    61                          	sta veralo
+    62                          }
+    63                          
+    64                          !macro sprload .offset {
+    65                          	+sprset .offset
+    66                          	lda veradat
+    67                          }
+    68                          
+    69                          !macro sprstore .offset {
+    70                          	pha
+    71                          	+sprset .offset
+    72                          	pla
+    73                          	sta veradat
+    74                          }
+    75                          
+    76                          !macro video_init {
+    77                          	lda #0
+    78                          	sta veractl ; set ADDR1 active
+    79                          	sta veramid
+    80                          	lda #$1F    ; $F0000 increment 1
+    81                          	sta verahi
+    82                          	lda #$00
+    83                          	sta veralo
+    84                          	lda #1
+    85                          	sta veradat ; VGA output
+    86                          }
+
+; ******** Source: gol1.asm
+    29                          *=$0801			; Assembled code should start at $0801
+    30                          			; (where BASIC programs start)
+    31                          			; The real program starts at $0810 = 2064
+    32  0801 0c08               !byte $0C,$08		; $080C - pointer to next line of BASIC code
+    33  0803 0a00               !byte $0A,$00		; 2-byte line number ($000A = 10)
+    34  0805 9e                 !byte $9E		; SYS BASIC token
+    35  0806 20                 !byte $20		; [space]
+    36  0807 32303634           !byte $32,$30,$36,$34	; $32="2",$30="0",$36="6",$34="4"
+    37                          			; (ASCII encoded nums for dec starting addr)
+    38  080b 00                 !byte $00		; End of Line
+    39  080c 0000               !byte $00,$00		; This is address $080C containing
+    40                          			; 2-byte pointer to next line of BASIC code
+    41                          			; ($0000 = end of program)
+    42                          *=$0810			; Here starts the real program
+    43  0810 a9008d259f8d219f...+video_init
+    44  0827 a9108d229fa9008d...+vset $00000 | AUTO_INC_1 ; VRAM bank 0
+    45                          
+    46                          CHROUT=$FFD2		; CHROUT outputs a character (C64 Kernal API)
+    47                          CHRIN=$FFCF		; CHRIN read from default input
+    48                          CURRENT=$0
+    49                          
+    50                          start:
+    51  0836 a920               	lda #32 	; space
+    52  0838 8529               	sta Character
+    53  083a a903               	lda #3		; light blue
+    54  083c 852a               	sta Colour
+    55  083e 20570b             	jsr fullscreen
+    56                          
+    57  0841 a92a               	lda #$2A	; star
+    58  0843 8529               	sta Character
+    59                          
+    60  0845 205208             	jsr readlist	; initial board state
+    61                          
+    62  0848 20cfff             	jsr CHRIN
+    63  084b 20cfff             	jsr CHRIN
+    64                          
+    65  084e 20a608             	jsr makelist
+    66                          
+    67  0851 60                 	rts
+    68                          
+    69                          
+    70                          
+
+; ******** Source: readlist.inc
+     1                          readlist:
+     2  0852 a9e4               	lda #<.actions		; address the action list
+     3  0854 852c               	sta ach
+     4  0856 a20b               	ldx #>.actions
+     5  0858 862d               	stx ach+1
+     6  085a a000               	ldy #0
+     7                          readloop:
+     8  085c b12c               	lda (ach),y
+     9  085e c9ff               	cmp #255 		; is this the last action
+    10  0860 d001               	bne outputaction        ; no - update vera
+    11  0862 60                 	rts
+    12                          
+    13                          outputaction:
+    14  0863 c8                 	iny			; is there a better way than iny/beq four times 
+    15  0864 f020               	beq pageinc1		; to check for the end of the actions list?
+    16                          ret1:
+    17  0866 b12c               	lda (ach),y
+    18  0868 8d229f             	sta verahi
+    19  086b c8                 	iny
+    20  086c f020               	beq pageinc2
+    21                          ret2:
+    22  086e b12c               	lda (ach),y
+    23  0870 8d219f             	sta veramid
+    24  0873 c8                 	iny
+    25  0874 f020               	beq pageinc3
+    26                          ret3:
+    27  0876 b12c               	lda (ach),y
+    28  0878 8d209f             	sta veralo
+    29  087b a529               	lda Character
+    30  087d 8d239f             	sta veradat
+    31  0880 c8                 	iny
+    32  0881 f01b               	beq pageinc4
+    33                          ret4:
+    34  0883 4c5c08             	jmp readloop
+    35                          
+    36                          pageinc1:
+    37  0886 a52c               	lda ach
+    38  0888 1a                 	inc 
+    39  0889 852c               	sta ach
+    40  088b 4c6608             	jmp ret1
+    41                          pageinc2:
+    42  088e a52c               	lda ach
+    43  0890 1a                 	inc 
+    44  0891 852c               	sta ach
+    45  0893 4c6e08             	jmp ret2
+    46                          pageinc3:
+    47  0896 a52c               	lda ach
+    48  0898 1a                 	inc 
+    49  0899 852c               	sta ach
+    50  089b 4c7608             	jmp ret3
+    51                          pageinc4:
+    52  089e a52c               	lda ach
+    53  08a0 1a                 	inc 
+    54  08a1 852c               	sta ach
+    55  08a3 4c8308             	jmp ret4
+
+; ******** Source: gol1.asm
+
+; ******** Source: makelist.inc
+     1                          
+     2                          makelist:
+     3  08a6 48                 	pha
+     4  08a7 5a                 	phy
+     5  08a8 da                 	phx
+     6  08a9 a94f               	lda #79
+     7  08ab 8527               	sta CursorX
+     8  08ad a93b               	lda #59
+     9  08af 8528               	sta CursorY
+    10  08b1 c627               	dec CursorX
+    11  08b3 fa                 	plx
+    12  08b4 7a                 	ply
+    13  08b5 68                 	pla
+    14  08b6 48                 	pha
+    15  08b7 5a                 	phy
+    16  08b8 da                 	phx
+    17  08b9 a94f               	lda #79
+    18  08bb 8527               	sta CursorX
+    19  08bd a93b               	lda #59
+    20  08bf 8528               	sta CursorY
+    21  08c1 c627               	dec CursorX
+    22  08c3 fa                 	plx
+    23  08c4 7a                 	ply
+    24  08c5 68                 	pla
+    25  08c6 48                 	pha
+    26  08c7 5a                 	phy
+    27  08c8 da                 	phx
+    28  08c9 a94f               	lda #79
+    29  08cb 8527               	sta CursorX
+    30  08cd a93b               	lda #59
+    31  08cf 8528               	sta CursorY
+    32  08d1 c627               	dec CursorX
+    33  08d3 fa                 	plx
+    34  08d4 7a                 	ply
+    35  08d5 68                 	pla
+    36  08d6 48                 	pha
+    37  08d7 5a                 	phy
+    38  08d8 da                 	phx
+    39  08d9 a94f               	lda #79
+    40  08db 8527               	sta CursorX
+    41  08dd a93b               	lda #59
+    42  08df 8528               	sta CursorY
+    43  08e1 c627               	dec CursorX
+    44  08e3 fa                 	plx
+    45  08e4 7a                 	ply
+    46  08e5 68                 	pla
+    47  08e6 48                 	pha
+    48  08e7 5a                 	phy
+    49  08e8 da                 	phx
+    50  08e9 a94f               	lda #79
+    51  08eb 8527               	sta CursorX
+    52  08ed a93b               	lda #59
+    53  08ef 8528               	sta CursorY
+    54  08f1 c627               	dec CursorX
+    55  08f3 fa                 	plx
+    56  08f4 7a                 	ply
+    57  08f5 68                 	pla
+    58  08f6 48                 	pha
+    59  08f7 5a                 	phy
+    60  08f8 da                 	phx
+    61  08f9 a94f               	lda #79
+    62  08fb 8527               	sta CursorX
+    63  08fd a93b               	lda #59
+    64  08ff 8528               	sta CursorY
+    65  0901 c627               	dec CursorX
+    66  0903 fa                 	plx
+    67  0904 7a                 	ply
+    68  0905 68                 	pla
+    69  0906 48                 	pha
+    70  0907 5a                 	phy
+    71  0908 da                 	phx
+    72  0909 a94f               	lda #79
+    73  090b 8527               	sta CursorX
+    74  090d a93b               	lda #59
+    75  090f 8528               	sta CursorY
+    76  0911 c627               	dec CursorX
+    77  0913 fa                 	plx
+    78  0914 7a                 	ply
+    79  0915 68                 	pla
+    80  0916 48                 	pha
+    81  0917 5a                 	phy
+    82  0918 da                 	phx
+    83  0919 a94f               	lda #79
+    84  091b 8527               	sta CursorX
+    85  091d a93b               	lda #59
+    86  091f 8528               	sta CursorY
+    87  0921 c627               	dec CursorX
+    88  0923 fa                 	plx
+    89  0924 7a                 	ply
+    90  0925 68                 	pla
+    91  0926 48                 	pha
+    92  0927 5a                 	phy
+    93  0928 da                 	phx
+    94  0929 a94f               	lda #79
+    95  092b 8527               	sta CursorX
+    96  092d a93b               	lda #59
+    97  092f 8528               	sta CursorY
+    98  0931 c627               	dec CursorX
+    99  0933 fa                 	plx
+   100  0934 7a                 	ply
+   101  0935 68                 	pla
+   102  0936 48                 	pha
+   103  0937 5a                 	phy
+   104  0938 da                 	phx
+   105  0939 a94f               	lda #79
+   106  093b 8527               	sta CursorX
+   107  093d a93b               	lda #59
+   108  093f 8528               	sta CursorY
+   109  0941 c627               	dec CursorX
+   110  0943 fa                 	plx
+   111  0944 7a                 	ply
+   112  0945 68                 	pla
+   113  0946 48                 	pha
+   114  0947 5a                 	phy
+   115  0948 da                 	phx
+   116  0949 a94f               	lda #79
+   117  094b 8527               	sta CursorX
+   118  094d a93b               	lda #59
+   119  094f 8528               	sta CursorY
+   120  0951 c627               	dec CursorX
+   121  0953 fa                 	plx
+   122  0954 7a                 	ply
+   123  0955 68                 	pla
+   124  0956 48                 	pha
+   125  0957 5a                 	phy
+   126  0958 da                 	phx
+   127  0959 a94f               	lda #79
+   128  095b 8527               	sta CursorX
+   129  095d a93b               	lda #59
+   130  095f 8528               	sta CursorY
+   131  0961 c627               	dec CursorX
+   132  0963 fa                 	plx
+   133  0964 7a                 	ply
+   134  0965 68                 	pla
+   135  0966 48                 	pha
+   136  0967 5a                 	phy
+   137  0968 da                 	phx
+   138  0969 a94f               	lda #79
+   139  096b 8527               	sta CursorX
+   140  096d a93b               	lda #59
+   141  096f 8528               	sta CursorY
+   142  0971 c627               	dec CursorX
+   143  0973 fa                 	plx
+   144  0974 7a                 	ply
+   145  0975 68                 	pla
+   146  0976 48                 	pha
+   147  0977 5a                 	phy
+   148  0978 da                 	phx
+   149  0979 a94f               	lda #79
+   150  097b 8527               	sta CursorX
+   151  097d a93b               	lda #59
+   152  097f 8528               	sta CursorY
+   153  0981 c627               	dec CursorX
+   154  0983 fa                 	plx
+   155  0984 7a                 	ply
+   156  0985 68                 	pla
+   157  0986 48                 	pha
+   158  0987 5a                 	phy
+   159  0988 da                 	phx
+   160  0989 a94f               	lda #79
+   161  098b 8527               	sta CursorX
+   162  098d a93b               	lda #59
+   163  098f 8528               	sta CursorY
+   164  0991 c627               	dec CursorX
+   165  0993 fa                 	plx
+   166  0994 7a                 	ply
+   167  0995 68                 	pla
+   168  0996 48                 	pha
+   169  0997 5a                 	phy
+   170  0998 da                 	phx
+   171  0999 a94f               	lda #79
+   172  099b 8527               	sta CursorX
+   173  099d a93b               	lda #59
+   174  099f 8528               	sta CursorY
+   175  09a1 c627               	dec CursorX
+   176  09a3 fa                 	plx
+   177  09a4 7a                 	ply
+   178  09a5 68                 	pla
+   179  09a6 48                 	pha
+   180  09a7 5a                 	phy
+   181  09a8 da                 	phx
+   182  09a9 a94f               	lda #79
+   183  09ab 8527               	sta CursorX
+   184  09ad a93b               	lda #59
+   185  09af 8528               	sta CursorY
+   186  09b1 c627               	dec CursorX
+   187  09b3 fa                 	plx
+   188  09b4 7a                 	ply
+   189  09b5 68                 	pla
+   190  09b6 48                 	pha
+   191  09b7 5a                 	phy
+   192  09b8 da                 	phx
+   193  09b9 a94f               	lda #79
+   194  09bb 8527               	sta CursorX
+   195  09bd a93b               	lda #59
+   196  09bf 8528               	sta CursorY
+   197  09c1 c627               	dec CursorX
+   198  09c3 fa                 	plx
+   199  09c4 7a                 	ply
+   200  09c5 68                 	pla
+   201  09c6 48                 	pha
+   202  09c7 5a                 	phy
+   203  09c8 da                 	phx
+   204  09c9 a94f               	lda #79
+   205  09cb 8527               	sta CursorX
+   206  09cd a93b               	lda #59
+   207  09cf 8528               	sta CursorY
+   208  09d1 c627               	dec CursorX
+   209  09d3 fa                 	plx
+   210  09d4 7a                 	ply
+   211  09d5 68                 	pla
+   212  09d6 48                 	pha
+   213  09d7 5a                 	phy
+   214  09d8 da                 	phx
+   215  09d9 a94f               	lda #79
+   216  09db 8527               	sta CursorX
+   217  09dd a93b               	lda #59
+   218  09df 8528               	sta CursorY
+   219  09e1 c627               	dec CursorX
+   220  09e3 fa                 	plx
+   221  09e4 7a                 	ply
+   222  09e5 68                 	pla
+   223  09e6 48                 	pha
+   224  09e7 5a                 	phy
+   225  09e8 da                 	phx
+   226  09e9 a94f               	lda #79
+   227  09eb 8527               	sta CursorX
+   228  09ed a93b               	lda #59
+   229  09ef 8528               	sta CursorY
+   230  09f1 c627               	dec CursorX
+   231  09f3 fa                 	plx
+   232  09f4 7a                 	ply
+   233  09f5 68                 	pla
+   234  09f6 48                 	pha
+   235  09f7 5a                 	phy
+   236  09f8 da                 	phx
+   237  09f9 a94f               	lda #79
+   238  09fb 8527               	sta CursorX
+   239  09fd a93b               	lda #59
+   240  09ff 8528               	sta CursorY
+   241  0a01 c627               	dec CursorX
+   242  0a03 fa                 	plx
+   243  0a04 7a                 	ply
+   244  0a05 68                 	pla
+   245  0a06 48                 	pha
+   246  0a07 5a                 	phy
+   247  0a08 da                 	phx
+   248  0a09 a94f               	lda #79
+   249  0a0b 8527               	sta CursorX
+   250  0a0d a93b               	lda #59
+   251  0a0f 8528               	sta CursorY
+   252  0a11 c627               	dec CursorX
+   253  0a13 fa                 	plx
+   254  0a14 7a                 	ply
+   255  0a15 68                 	pla
+   256  0a16 48                 	pha
+   257  0a17 5a                 	phy
+   258  0a18 da                 	phx
+   259  0a19 a94f               	lda #79
+   260  0a1b 8527               	sta CursorX
+   261  0a1d a93b               	lda #59
+   262  0a1f 8528               	sta CursorY
+   263  0a21 c627               	dec CursorX
+   264  0a23 fa                 	plx
+   265  0a24 7a                 	ply
+   266  0a25 68                 	pla
+   267  0a26 48                 	pha
+   268  0a27 5a                 	phy
+   269  0a28 da                 	phx
+   270  0a29 a94f               	lda #79
+   271  0a2b 8527               	sta CursorX
+   272  0a2d a93b               	lda #59
+   273  0a2f 8528               	sta CursorY
+   274  0a31 c627               	dec CursorX
+   275  0a33 fa                 	plx
+   276  0a34 7a                 	ply
+   277  0a35 68                 	pla
+   278  0a36 48                 	pha
+   279  0a37 5a                 	phy
+   280  0a38 da                 	phx
+   281  0a39 a94f               	lda #79
+   282  0a3b 8527               	sta CursorX
+   283  0a3d a93b               	lda #59
+   284  0a3f 8528               	sta CursorY
+   285  0a41 c627               	dec CursorX
+   286  0a43 fa                 	plx
+   287  0a44 7a                 	ply
+   288  0a45 68                 	pla
+   289  0a46 48                 	pha
+   290  0a47 5a                 	phy
+   291  0a48 da                 	phx
+   292  0a49 a94f               	lda #79
+   293  0a4b 8527               	sta CursorX
+   294  0a4d a93b               	lda #59
+   295  0a4f 8528               	sta CursorY
+   296  0a51 c627               	dec CursorX
+   297  0a53 fa                 	plx
+   298  0a54 7a                 	ply
+   299  0a55 68                 	pla
+   300  0a56 48                 	pha
+   301  0a57 5a                 	phy
+   302  0a58 da                 	phx
+   303  0a59 a94f               	lda #79
+   304  0a5b 8527               	sta CursorX
+   305  0a5d a93b               	lda #59
+   306  0a5f 8528               	sta CursorY
+   307  0a61 c627               	dec CursorX
+   308  0a63 fa                 	plx
+   309  0a64 7a                 	ply
+   310  0a65 68                 	pla
+   311  0a66 48                 	pha
+   312  0a67 5a                 	phy
+   313  0a68 da                 	phx
+   314  0a69 a94f               	lda #79
+   315  0a6b 8527               	sta CursorX
+   316  0a6d a93b               	lda #59
+   317  0a6f 8528               	sta CursorY
+   318  0a71 c627               	dec CursorX
+   319  0a73 fa                 	plx
+   320  0a74 7a                 	ply
+   321  0a75 68                 	pla
+   322  0a76 48                 	pha
+   323  0a77 5a                 	phy
+   324  0a78 da                 	phx
+   325  0a79 a94f               	lda #79
+   326  0a7b 8527               	sta CursorX
+   327  0a7d a93b               	lda #59
+   328  0a7f 8528               	sta CursorY
+   329  0a81 c627               	dec CursorX
+   330  0a83 fa                 	plx
+   331  0a84 7a                 	ply
+   332  0a85 68                 	pla
+   333  0a86 48                 	pha
+   334  0a87 5a                 	phy
+   335  0a88 da                 	phx
+   336  0a89 a94f               	lda #79
+   337  0a8b 8527               	sta CursorX
+   338  0a8d a93b               	lda #59
+   339  0a8f 8528               	sta CursorY
+   340  0a91 c627               	dec CursorX
+   341  0a93 fa                 	plx
+   342  0a94 7a                 	ply
+   343  0a95 68                 	pla
+   344  0a96 48                 	pha
+   345  0a97 5a                 	phy
+   346  0a98 da                 	phx
+   347  0a99 a94f               	lda #79
+   348  0a9b 8527               	sta CursorX
+   349  0a9d a93b               	lda #59
+   350  0a9f 8528               	sta CursorY
+   351  0aa1 c627               	dec CursorX
+   352  0aa3 fa                 	plx
+   353  0aa4 7a                 	ply
+   354  0aa5 68                 	pla
+   355  0aa6 48                 	pha
+   356  0aa7 5a                 	phy
+   357  0aa8 da                 	phx
+   358  0aa9 a94f               	lda #79
+   359  0aab 8527               	sta CursorX
+   360  0aad a93b               	lda #59
+   361  0aaf 8528               	sta CursorY
+   362  0ab1 c627               	dec CursorX
+   363  0ab3 fa                 	plx
+   364  0ab4 7a                 	ply
+   365  0ab5 68                 	pla
+   366  0ab6 48                 	pha
+   367  0ab7 5a                 	phy
+   368  0ab8 da                 	phx
+   369  0ab9 a94f               	lda #79
+   370  0abb 8527               	sta CursorX
+   371  0abd a93b               	lda #59
+   372  0abf 8528               	sta CursorY
+   373  0ac1 c627               	dec CursorX
+   374  0ac3 fa                 	plx
+   375  0ac4 7a                 	ply
+   376  0ac5 68                 	pla
+   377  0ac6 48                 	pha
+   378  0ac7 5a                 	phy
+   379  0ac8 da                 	phx
+   380  0ac9 a94f               	lda #79
+   381  0acb 8527               	sta CursorX
+   382  0acd a93b               	lda #59
+   383  0acf 8528               	sta CursorY
+   384  0ad1 c627               	dec CursorX
+   385  0ad3 fa                 	plx
+   386  0ad4 7a                 	ply
+   387  0ad5 68                 	pla
+   388  0ad6 48                 	pha
+   389  0ad7 5a                 	phy
+   390  0ad8 da                 	phx
+   391  0ad9 a94f               	lda #79
+   392  0adb 8527               	sta CursorX
+   393  0add a93b               	lda #59
+   394  0adf 8528               	sta CursorY
+   395  0ae1 c627               	dec CursorX
+   396  0ae3 fa                 	plx
+   397  0ae4 7a                 	ply
+   398  0ae5 68                 	pla
+   399  0ae6 48                 	pha
+   400  0ae7 5a                 	phy
+   401  0ae8 da                 	phx
+   402  0ae9 a94f               	lda #79
+   403  0aeb 8527               	sta CursorX
+   404  0aed a93b               	lda #59
+   405  0aef 8528               	sta CursorY
+   406  0af1 c627               	dec CursorX
+   407  0af3 fa                 	plx
+   408  0af4 7a                 	ply
+   409  0af5 68                 	pla
+   410  0af6 48                 	pha
+   411  0af7 5a                 	phy
+   412  0af8 da                 	phx
+   413  0af9 a94f               	lda #79
+   414  0afb 8527               	sta CursorX
+   415  0afd a93b               	lda #59
+   416  0aff 8528               	sta CursorY
+   417  0b01 c627               	dec CursorX
+   418  0b03 fa                 	plx
+   419  0b04 7a                 	ply
+   420  0b05 68                 	pla
+   421  0b06 48                 	pha
+   422  0b07 5a                 	phy
+   423  0b08 da                 	phx
+   424  0b09 a94f               	lda #79
+   425  0b0b 8527               	sta CursorX
+   426  0b0d a93b               	lda #59
+   427  0b0f 8528               	sta CursorY
+   428  0b11 c627               	dec CursorX
+   429  0b13 fa                 	plx
+   430  0b14 7a                 	ply
+   431  0b15 68                 	pla
+   432  0b16 48                 	pha
+   433  0b17 5a                 	phy
+   434  0b18 da                 	phx
+   435  0b19 a94f               	lda #79
+   436  0b1b 8527               	sta CursorX
+   437  0b1d a93b               	lda #59
+   438  0b1f 8528               	sta CursorY
+   439  0b21 c627               	dec CursorX
+   440  0b23 fa                 	plx
+   441  0b24 7a                 	ply
+   442  0b25 68                 	pla
+   443  0b26 48                 	pha
+   444  0b27 5a                 	phy
+   445  0b28 da                 	phx
+   446  0b29 a94f               	lda #79
+   447  0b2b 8527               	sta CursorX
+   448  0b2d a93b               	lda #59
+   449  0b2f 8528               	sta CursorY
+   450  0b31 c627               	dec CursorX
+   451  0b33 fa                 	plx
+   452  0b34 7a                 	ply
+   453  0b35 68                 	pla
+   454  0b36 48                 	pha
+   455  0b37 5a                 	phy
+   456  0b38 da                 	phx
+   457  0b39 a94f               	lda #79
+   458  0b3b 8527               	sta CursorX
+   459  0b3d a93b               	lda #59
+   460  0b3f 8528               	sta CursorY
+   461  0b41 c627               	dec CursorX
+   462  0b43 fa                 	plx
+   463  0b44 7a                 	ply
+   464  0b45 68                 	pla
+   465  0b46 48                 	pha
+   466  0b47 5a                 	phy
+   467  0b48 da                 	phx
+   468  0b49 a94f               	lda #79
+   469  0b4b 8527               	sta CursorX
+   470  0b4d a93b               	lda #59
+   471  0b4f 8528               	sta CursorY
+   472  0b51 c627               	dec CursorX
+   473  0b53 fa                 	plx
+   474  0b54 7a                 	ply
+   475  0b55 68                 	pla
+   476  0b56 60                 	rts		; Return to caller
+   477                          
+
+; ******** Source: gol1.asm
+    73                          	
+    74                          
+    75                          fullscreen:
+    76  0b57 a94f               	lda #79
+    77  0b59 8527               	sta CursorX
+    78  0b5b a93b               	lda #59
+    79  0b5d 8528               	sta CursorY
+    80                          goleft:
+    81  0b5f 206a0b             	jsr column
+    82  0b62 c627               	dec CursorX
+    83  0b64 d0f9               	bne goleft
+    84  0b66 206a0b             	jsr column
+    85  0b69 60                 	rts		; Return to caller
+    86                          
+    87                          column:
+    88  0b6a 20790b             	jsr veraprint
+    89  0b6d c628               	dec CursorY
+    90  0b6f d0f9               	bne column
+    91  0b71 20790b             	jsr veraprint
+    92  0b74 a93b               	lda #59
+    93  0b76 8528               	sta CursorY
+    94  0b78 60                 	rts
+    95                          	
+    96                          
+    97                          veraprint:
+    98  0b79 48                 	pha
+    99  0b7a 5a                 	phy
+   100  0b7b da                 	phx
+   101                          	; set the memory addr
+   102  0b7c 20970b             	jsr sexy
+   103                          	; send the char to VERA at x y
+   104  0b7f a429               	ldy Character
+   105  0b81 8c239f             	sty veradat
+   106  0b84 a42a               	ldy Colour
+   107  0b86 8c239f             	sty veradat
+   108  0b89 fa                 	plx
+   109  0b8a 7a                 	ply
+   110  0b8b 68                 	pla
+   111  0b8c 60                 	rts
+   112                          
+   113                          SetVeraADDR:             
+   114                                                  
+   115                          		; A contains vera Hi addr,
+   116                          		; Y contains vera mid
+   117                          		; X contains vera lo
+   118                          
+   119                          		; -- comment - could I use X and Y regs directly
+   120                          		; -- instead of my Zero page surrogates? Hmm
+   121                          
+   122  0b8d 8d229f                             sta verahi
+   123  0b90 8c219f                             sty veramid
+   124  0b93 8e209f                             stx veralo
+   125  0b96 60                 		rts
+   126                          
+   127                          sexy:
+   128                          
+   129  0b97 6425                               stz z_d                     
+   130  0b99 a528                               lda CursorY     
+   131  0b9b 18                                 clc
+   132  0b9c 6524                               adc z_e                         ;Add carry to M byte
+   133  0b9e a8                                 tay
+   134  0b9f a525                               lda z_d
+   135  0ba1 6900                               adc #0                          ;Add carry to H byte
+   136  0ba3 8525                               sta z_d
+   137  0ba5 6424                               stz z_e
+   138  0ba7 a527                               lda CursorX     
+   139  0ba9 0a                                 asl
+   140  0baa 2624                               rol z_e
+   141  0bac aa                                 tax                        
+   142  0bad 98                                 tya                       
+   143  0bae 6524                               adc z_e
+   144  0bb0 a8                                 tay                      
+   145  0bb1 a525                               lda z_d                 
+   146  0bb3 6910                               adc #$10               
+   147                          
+   148  0bb5 208d0b                             jsr SetVeraADDR        
+   149  0bb8 60                 		rts
+   150                          
+   151  0bb9 54455354494e4720....string !pet	"testing x y coords - waiting for enter...",13,0
+
+; ******** Source: grid.inc
+     1                          .actions
+     2  0be4 01100000           !byte $1,$10,$00,$00
+     3  0be8 0110009e           !byte $1,$10,$00,$9E
+     4  0bec 01100100           !byte $1,$10,$01,$00
+     5  0bf0 0110019e           !byte $1,$10,$01,$9E
+     6  0bf4 0110042c           !byte $1,$10,$04,$2C
+     7  0bf8 0110042e           !byte $1,$10,$04,$2E
+     8  0bfc 01100430           !byte $1,$10,$04,$30
+     9  0c00 01100432           !byte $1,$10,$04,$32
+    10  0c04 01100434           !byte $1,$10,$04,$34
+    11  0c08 01100580           !byte $1,$10,$05,$80
+    12  0c0c 0110061a           !byte $1,$10,$06,$1A
+    13  0c10 0110061c           !byte $1,$10,$06,$1C
+    14  0c14 0110061e           !byte $1,$10,$06,$1E
+    15  0c18 01100620           !byte $1,$10,$06,$20
+    16  0c1c 01100622           !byte $1,$10,$06,$22
+    17  0c20 01100628           !byte $1,$10,$06,$28
+    18  0c24 01100856           !byte $1,$10,$08,$56
+    19  0c28 01100858           !byte $1,$10,$08,$58
+    20  0c2c 0110085a           !byte $1,$10,$08,$5A
+    21  0c30 0110085c           !byte $1,$10,$08,$5C
+    22  0c34 01100954           !byte $1,$10,$09,$54
+    23  0c38 0110095c           !byte $1,$10,$09,$5C
+    24  0c3c 01100a5c           !byte $1,$10,$0A,$5C
+    25  0c40 01100a7a           !byte $1,$10,$0A,$7A
+    26  0c44 01100a7c           !byte $1,$10,$0A,$7C
+    27  0c48 01100a7e           !byte $1,$10,$0A,$7E
+    28  0c4c 01100a80           !byte $1,$10,$0A,$80
+    29  0c50 01100d20           !byte $1,$10,$0D,$20
+    30  0c54 01100e20           !byte $1,$10,$0E,$20
+    31  0c58 01100f20           !byte $1,$10,$0F,$20
+    32  0c5c 01100f5c           !byte $1,$10,$0F,$5C
+    33  0c60 01100f62           !byte $1,$10,$0F,$62
+    34  0c64 0110105e           !byte $1,$10,$10,$5E
+    35  0c68 0110117a           !byte $1,$10,$11,$7A
+    36  0c6c 0110127a           !byte $1,$10,$12,$7A
+    37  0c70 0110137a           !byte $1,$10,$13,$7A
+    38  0c74 0110141e           !byte $1,$10,$14,$1E
+    39  0c78 0110151e           !byte $1,$10,$15,$1E
+    40  0c7c 01101540           !byte $1,$10,$15,$40
+    41  0c80 01101542           !byte $1,$10,$15,$42
+    42  0c84 01101544           !byte $1,$10,$15,$44
+    43  0c88 0110157a           !byte $1,$10,$15,$7A
+    44  0c8c 0110161e           !byte $1,$10,$16,$1E
+    45  0c90 0110171e           !byte $1,$10,$17,$1E
+    46  0c94 01101776           !byte $1,$10,$17,$76
+    47  0c98 01101778           !byte $1,$10,$17,$78
+    48  0c9c 0110177a           !byte $1,$10,$17,$7A
+    49  0ca0 0110181e           !byte $1,$10,$18,$1E
+    50  0ca4 01101878           !byte $1,$10,$18,$78
+    51  0ca8 01101952           !byte $1,$10,$19,$52
+    52  0cac 01101956           !byte $1,$10,$19,$56
+    53  0cb0 01101958           !byte $1,$10,$19,$58
+    54  0cb4 0110195a           !byte $1,$10,$19,$5A
+    55  0cb8 0110195e           !byte $1,$10,$19,$5E
+    56  0cbc 01101960           !byte $1,$10,$19,$60
+    57  0cc0 01101964           !byte $1,$10,$19,$64
+    58  0cc4 0110197a           !byte $1,$10,$19,$7A
+    59  0cc8 01101a4c           !byte $1,$10,$1A,$4C
+    60  0ccc 01101a4e           !byte $1,$10,$1A,$4E
+    61  0cd0 01101a50           !byte $1,$10,$1A,$50
+    62  0cd4 01101a64           !byte $1,$10,$1A,$64
+    63  0cd8 01101a7c           !byte $1,$10,$1A,$7C
+    64  0cdc 01101b40           !byte $1,$10,$1B,$40
+    65  0ce0 01101b42           !byte $1,$10,$1B,$42
+    66  0ce4 01101b4c           !byte $1,$10,$1B,$4C
+    67  0ce8 01101b64           !byte $1,$10,$1B,$64
+    68  0cec 01101b7c           !byte $1,$10,$1B,$7C
+    69  0cf0 01101c42           !byte $1,$10,$1C,$42
+    70  0cf4 01101c62           !byte $1,$10,$1C,$62
+    71  0cf8 01101c7c           !byte $1,$10,$1C,$7C
+    72  0cfc 01101d4c           !byte $1,$10,$1D,$4C
+    73  0d00 01101d4e           !byte $1,$10,$1D,$4E
+    74  0d04 01101d7c           !byte $1,$10,$1D,$7C
+    75  0d08 01101e46           !byte $1,$10,$1E,$46
+    76  0d0c 01101e4e           !byte $1,$10,$1E,$4E
+    77  0d10 01101e78           !byte $1,$10,$1E,$78
+    78  0d14 01101e7a           !byte $1,$10,$1E,$7A
+    79  0d18 01101f48           !byte $1,$10,$1F,$48
+    80  0d1c 01101f4a           !byte $1,$10,$1F,$4A
+    81  0d20 01101f4e           !byte $1,$10,$1F,$4E
+    82  0d24 01101f76           !byte $1,$10,$1F,$76
+    83  0d28 0110204a           !byte $1,$10,$20,$4A
+    84  0d2c 0110204e           !byte $1,$10,$20,$4E
+    85  0d30 01102076           !byte $1,$10,$20,$76
+    86  0d34 0110214c           !byte $1,$10,$21,$4C
+    87  0d38 0110214e           !byte $1,$10,$21,$4E
+    88  0d3c 01102160           !byte $1,$10,$21,$60
+    89  0d40 01102164           !byte $1,$10,$21,$64
+    90  0d44 01102174           !byte $1,$10,$21,$74
+    91  0d48 01102266           !byte $1,$10,$22,$66
+    92  0d4c 01102272           !byte $1,$10,$22,$72
+    93  0d50 01102370           !byte $1,$10,$23,$70
+    94  0d54 01102466           !byte $1,$10,$24,$66
+    95  0d58 01102468           !byte $1,$10,$24,$68
+    96  0d5c 0110246a           !byte $1,$10,$24,$6A
+    97  0d60 0110246e           !byte $1,$10,$24,$6E
+    98  0d64 01102470           !byte $1,$10,$24,$70
+    99  0d68 01103b00           !byte $1,$10,$3B,$00
+   100  0d6c 01103b9e           !byte $1,$10,$3B,$9E
+   101  0d70 ffffff             !byte $FF,$FF,$FF
+
+; ******** Source: gol1.asm
+   153                          
