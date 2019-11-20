@@ -25,6 +25,13 @@ nn = zr+17		;neighbor count
 bx = zr+20		; hold current cursor for checking square
 by = zr+21
 
+mkll = zr+22		; build a list at this address, initially set to list base
+mklh = zr+23		; high byte
+mkly = zr+24		; store current list Y indirect index register
+sx = zr+25		; store X in list
+sy = zr+26		; store Y in list
+sc = zr+27		; store char in list
+
 !src "vera.inc"
 *=$0801			; Assembled code should start at $0801
 			; (where BASIC programs start)
@@ -67,6 +74,34 @@ start:
 
 	jsr CHRIN
 	jsr CHRIN
+
+	lda #32
+	sta Character
+	jsr fullscreen
+
+	jsr initlist
+
+	lda #$2a
+	sta sc
+	lda #40
+	sta sx
+	sta sy
+	jsr storeaction
+	lda #41
+	sta sx
+	sta sy
+	jsr storeaction
+	lda #42
+	sta sx
+	sta sy
+	jsr storeaction
+	lda #255		; terminate the list
+	sta sx
+	sta sy
+	sta sc
+	jsr storeaction
+
+	jsr readlist
 
 	rts
 

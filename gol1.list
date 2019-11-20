@@ -27,6 +27,13 @@
     25                          bx = zr+20		; hold current cursor for checking square
     26                          by = zr+21
     27                          
+    28                          mkll = zr+22		; build a list at this address, initially set to list base
+    29                          mklh = zr+23		; high byte
+    30                          mkly = zr+24		; store current list Y indirect index register
+    31                          sx = zr+25		; store X in list
+    32                          sy = zr+26		; store Y in list
+    33                          sc = zr+27		; store char in list
+    34                          
 
 ; ******** Source: vera.inc
      1                          ; License: Public Domain
@@ -117,1477 +124,569 @@
     86                          }
 
 ; ******** Source: gol1.asm
-    29                          *=$0801			; Assembled code should start at $0801
-    30                          			; (where BASIC programs start)
-    31                          			; The real program starts at $0810 = 2064
-    32  0801 0c08               !byte $0C,$08		; $080C - pointer to next line of BASIC code
-    33  0803 0a00               !byte $0A,$00		; 2-byte line number ($000A = 10)
-    34  0805 9e                 !byte $9E		; SYS BASIC token
-    35  0806 20                 !byte $20		; [space]
-    36  0807 32303634           !byte $32,$30,$36,$34	; $32="2",$30="0",$36="6",$34="4"
-    37                          			; (ASCII encoded nums for dec starting addr)
-    38  080b 00                 !byte $00		; End of Line
-    39  080c 0000               !byte $00,$00		; This is address $080C containing
-    40                          			; 2-byte pointer to next line of BASIC code
-    41                          			; ($0000 = end of program)
-    42                          *=$0810			; Here starts the real program
-    43  0810 a9008d259f8d219f...+video_init
-    44  0827 a9108d229fa9008d...+vset $00000 | AUTO_INC_1 ; VRAM bank 0
-    45                          
-    46                          CHROUT=$FFD2		; CHROUT outputs a character (C64 Kernal API)
-    47                          CHRIN=$FFCF		; CHRIN read from default input
-    48                          CURRENT=$0
-    49                          
-    50                          start:
-    51  0836 a920               	lda #32 	; space
-    52  0838 8529               	sta Character
-    53  083a a903               	lda #3		; light blue
-    54  083c 852a               	sta Colour
-    55  083e 20550d             	jsr fullscreen
+    36                          *=$0801			; Assembled code should start at $0801
+    37                          			; (where BASIC programs start)
+    38                          			; The real program starts at $0810 = 2064
+    39  0801 0c08               !byte $0C,$08		; $080C - pointer to next line of BASIC code
+    40  0803 0a00               !byte $0A,$00		; 2-byte line number ($000A = 10)
+    41  0805 9e                 !byte $9E		; SYS BASIC token
+    42  0806 20                 !byte $20		; [space]
+    43  0807 32303634           !byte $32,$30,$36,$34	; $32="2",$30="0",$36="6",$34="4"
+    44                          			; (ASCII encoded nums for dec starting addr)
+    45  080b 00                 !byte $00		; End of Line
+    46  080c 0000               !byte $00,$00		; This is address $080C containing
+    47                          			; 2-byte pointer to next line of BASIC code
+    48                          			; ($0000 = end of program)
+    49                          *=$0810			; Here starts the real program
+    50  0810 a9008d259f8d219f...+video_init
+    51  0827 a9108d229fa9008d...+vset $00000 | AUTO_INC_1 ; VRAM bank 0
+    52                          
+    53                          CHROUT=$FFD2		; CHROUT outputs a character (C64 Kernal API)
+    54                          CHRIN=$FFCF		; CHRIN read from default input
+    55                          CURRENT=$0
     56                          
-    57  0841 a92a               	lda #$2A	; star
-    58  0843 8529               	sta Character
-    59                          
-    60  0845 a902               	lda #2 		; red
-    61  0847 a907               	lda #7 		; yellow
-    62  0849 852a               	sta Colour
+    57                          start:
+    58  0836 a920               	lda #32 	; space
+    59  0838 8529               	sta Character
+    60  083a a903               	lda #3		; light blue
+    61  083c 852a               	sta Colour
+    62  083e 202a09             	jsr fullscreen
     63                          
-    64  084b 20770d             	jsr veraprint
-    65                          
-    66  084e 205808             	jsr readlist
-    67                          
-    68  0851 20cfff             	jsr CHRIN
-    69  0854 20cfff             	jsr CHRIN
+    64  0841 a92a               	lda #$2A	; star
+    65  0843 8529               	sta Character
+    66                          
+    67  0845 a902               	lda #2 		; red
+    68  0847 a907               	lda #7 		; yellow
+    69  0849 852a               	sta Colour
     70                          
-    71  0857 60                 	rts
+    71  084b 204c09             	jsr veraprint
     72                          
-    73                          
+    73  084e 208f08             	jsr readlist
     74                          
+    75  0851 20cfff             	jsr CHRIN
+    76  0854 20cfff             	jsr CHRIN
+    77                          
+    78  0857 a920               	lda #32
+    79  0859 8529               	sta Character
+    80  085b 202a09             	jsr fullscreen
+    81                          
+    82  085e 20d108             	jsr initlist
+    83                          
+    84  0861 a92a               	lda #$2a
+    85  0863 853b               	sta sc
+    86  0865 a928               	lda #40
+    87  0867 8539               	sta sx
+    88  0869 853a               	sta sy
+    89  086b 20ec08             	jsr storeaction
+    90  086e a929               	lda #41
+    91  0870 8539               	sta sx
+    92  0872 853a               	sta sy
+    93  0874 20ec08             	jsr storeaction
+    94  0877 a92a               	lda #42
+    95  0879 8539               	sta sx
+    96  087b 853a               	sta sy
+    97  087d 20ec08             	jsr storeaction
+    98  0880 a9ff               	lda #255		; terminate the list
+    99  0882 8539               	sta sx
+   100  0884 853a               	sta sy
+   101  0886 853b               	sta sc
+   102  0888 20ec08             	jsr storeaction
+   103                          
+   104  088b 208f08             	jsr readlist
+   105                          
+   106  088e 60                 	rts
+   107                          
+   108                          
+   109                          
 
 ; ******** Source: readlist.inc
      1                          readlist:
-     2  0858 a9d0               	lda #<.actions		; address the action list
-     3  085a 852c               	sta ach
-     4  085c a20d               	ldx #>.actions
-     5  085e 862d               	stx ach+1
-     6  0860 a000               	ldy #0
+     2  088f a9a5               	lda #<.actions		; address the action list
+     3  0891 852c               	sta ach
+     4  0893 a209               	ldx #>.actions
+     5  0895 862d               	stx ach+1
+     6  0897 a000               	ldy #0
      7                          readloop:
-     8  0862 b12c               	lda (ach),y
-     9  0864 c9ff               	cmp #255 		; is this the last action
-    10  0866 d001               	bne outputaction        ; no - update vera
-    11  0868 60                 	rts
+     8  0899 b12c               	lda (ach),y
+     9  089b c9ff               	cmp #255 		; is this the last action
+    10  089d d001               	bne outputaction        ; no - update vera
+    11  089f 60                 	rts
     12                          
     13                          outputaction:
-    14  0869 8529               	sta Character
-    15  086b c8                 	iny			; is there a better way than iny/beq four times 
-    16  086c f014               	beq pageinc1		; to check for the end of the actions list?
+    14  08a0 8529               	sta Character
+    15  08a2 c8                 	iny			; is there a better way than iny/beq four times 
+    16  08a3 f014               	beq pageinc1		; to check for the end of the actions list?
     17                          ret1:
-    18  086e b12c               	lda (ach),y
-    19  0870 8527               	sta CursorX
-    20  0872 c8                 	iny
-    21  0873 f015               	beq pageinc2
+    18  08a5 b12c               	lda (ach),y
+    19  08a7 8527               	sta CursorX
+    20  08a9 c8                 	iny
+    21  08aa f015               	beq pageinc2
     22                          ret2:
-    23  0875 b12c               	lda (ach),y
-    24  0877 8528               	sta CursorY
-    25  0879 c8                 	iny
-    26  087a f016               	beq pageinc3
+    23  08ac b12c               	lda (ach),y
+    24  08ae 8528               	sta CursorY
+    25  08b0 c8                 	iny
+    26  08b1 f016               	beq pageinc3
     27                          ret3:
-    28  087c 20770d             	jsr veraprint
-    29  087f 4c6208             	jmp readloop
+    28  08b3 204c09             	jsr veraprint
+    29  08b6 4c9908             	jmp readloop
     30                          pageinc1:
-    31  0882 a52d               	lda ach+1
-    32  0884 1a                 	inc 
-    33  0885 852d               	sta ach+1
-    34  0887 4c6e08             	jmp ret1
+    31  08b9 a52d               	lda ach+1
+    32  08bb 1a                 	inc 
+    33  08bc 852d               	sta ach+1
+    34  08be 4ca508             	jmp ret1
     35                          pageinc2:
-    36  088a a52d               	lda ach+1
-    37  088c 1a                 	inc 
-    38  088d 852d               	sta ach+1
-    39  088f 4c7508             	jmp ret2
+    36  08c1 a52d               	lda ach+1
+    37  08c3 1a                 	inc 
+    38  08c4 852d               	sta ach+1
+    39  08c6 4cac08             	jmp ret2
     40                          pageinc3:
-    41  0892 a52d               	lda ach+1
-    42  0894 1a                 	inc 
-    43  0895 852d               	sta ach+1
-    44  0897 4c7c08             	jmp ret3
+    41  08c9 a52d               	lda ach+1
+    42  08cb 1a                 	inc 
+    43  08cc 852d               	sta ach+1
+    44  08ce 4cb308             	jmp ret3
 
 ; ******** Source: gol1.asm
-    76                          
+   111                          
 
 ; ******** Source: makelist.inc
      1                          
-     2                          makelist:
-     3  089a 48                 	pha
-     4  089b 5a                 	phy
-     5  089c da                 	phx
-     6  089d a94f               	lda #79
-     7  089f 8527               	sta CursorX
-     8  08a1 a93b               	lda #59
-     9  08a3 8528               	sta CursorY
-    10  08a5 c627               	dec CursorX
-    11  08a7 fa                 	plx
-    12  08a8 7a                 	ply
-    13  08a9 68                 	pla
-    14  08aa 48                 	pha
-    15  08ab 5a                 	phy
-    16  08ac da                 	phx
-    17  08ad a94f               	lda #79
-    18  08af 8527               	sta CursorX
-    19  08b1 a93b               	lda #59
-    20  08b3 8528               	sta CursorY
-    21  08b5 c627               	dec CursorX
-    22  08b7 fa                 	plx
-    23  08b8 7a                 	ply
-    24  08b9 68                 	pla
-    25  08ba 48                 	pha
-    26  08bb 5a                 	phy
-    27  08bc da                 	phx
-    28  08bd a94f               	lda #79
-    29  08bf 8527               	sta CursorX
-    30  08c1 a93b               	lda #59
-    31  08c3 8528               	sta CursorY
-    32  08c5 c627               	dec CursorX
-    33  08c7 fa                 	plx
-    34  08c8 7a                 	ply
-    35  08c9 68                 	pla
-    36  08ca 48                 	pha
-    37  08cb 5a                 	phy
-    38  08cc da                 	phx
-    39  08cd a94f               	lda #79
-    40  08cf 8527               	sta CursorX
-    41  08d1 a93b               	lda #59
-    42  08d3 8528               	sta CursorY
-    43  08d5 c627               	dec CursorX
-    44  08d7 fa                 	plx
-    45  08d8 7a                 	ply
-    46  08d9 68                 	pla
-    47  08da 48                 	pha
-    48  08db 5a                 	phy
-    49  08dc da                 	phx
-    50  08dd a94f               	lda #79
-    51  08df 8527               	sta CursorX
-    52  08e1 a93b               	lda #59
-    53  08e3 8528               	sta CursorY
-    54  08e5 c627               	dec CursorX
-    55  08e7 fa                 	plx
-    56  08e8 7a                 	ply
-    57  08e9 68                 	pla
-    58  08ea 48                 	pha
-    59  08eb 5a                 	phy
-    60  08ec da                 	phx
-    61  08ed a94f               	lda #79
-    62  08ef 8527               	sta CursorX
-    63  08f1 a93b               	lda #59
-    64  08f3 8528               	sta CursorY
-    65  08f5 c627               	dec CursorX
-    66  08f7 fa                 	plx
-    67  08f8 7a                 	ply
-    68  08f9 68                 	pla
-    69  08fa 48                 	pha
-    70  08fb 5a                 	phy
-    71  08fc da                 	phx
-    72  08fd a94f               	lda #79
-    73  08ff 8527               	sta CursorX
-    74  0901 a93b               	lda #59
-    75  0903 8528               	sta CursorY
-    76  0905 c627               	dec CursorX
-    77  0907 fa                 	plx
-    78  0908 7a                 	ply
-    79  0909 68                 	pla
-    80  090a 48                 	pha
-    81  090b 5a                 	phy
-    82  090c da                 	phx
-    83  090d a94f               	lda #79
-    84  090f 8527               	sta CursorX
-    85  0911 a93b               	lda #59
-    86  0913 8528               	sta CursorY
-    87  0915 c627               	dec CursorX
-    88  0917 fa                 	plx
-    89  0918 7a                 	ply
-    90  0919 68                 	pla
-    91  091a 48                 	pha
-    92  091b 5a                 	phy
-    93  091c da                 	phx
-    94  091d a94f               	lda #79
-    95  091f 8527               	sta CursorX
-    96  0921 a93b               	lda #59
-    97  0923 8528               	sta CursorY
-    98  0925 c627               	dec CursorX
-    99  0927 fa                 	plx
-   100  0928 7a                 	ply
-   101  0929 68                 	pla
-   102  092a 48                 	pha
-   103  092b 5a                 	phy
-   104  092c da                 	phx
-   105  092d a94f               	lda #79
-   106  092f 8527               	sta CursorX
-   107  0931 a93b               	lda #59
-   108  0933 8528               	sta CursorY
-   109  0935 c627               	dec CursorX
-   110  0937 fa                 	plx
-   111  0938 7a                 	ply
-   112  0939 68                 	pla
-   113  093a 48                 	pha
-   114  093b 5a                 	phy
-   115  093c da                 	phx
-   116  093d a94f               	lda #79
-   117  093f 8527               	sta CursorX
-   118  0941 a93b               	lda #59
-   119  0943 8528               	sta CursorY
-   120  0945 c627               	dec CursorX
-   121  0947 fa                 	plx
-   122  0948 7a                 	ply
-   123  0949 68                 	pla
-   124  094a 48                 	pha
-   125  094b 5a                 	phy
-   126  094c da                 	phx
-   127  094d a94f               	lda #79
-   128  094f 8527               	sta CursorX
-   129  0951 a93b               	lda #59
-   130  0953 8528               	sta CursorY
-   131  0955 c627               	dec CursorX
-   132  0957 fa                 	plx
-   133  0958 7a                 	ply
-   134  0959 68                 	pla
-   135  095a 48                 	pha
-   136  095b 5a                 	phy
-   137  095c da                 	phx
-   138  095d a94f               	lda #79
-   139  095f 8527               	sta CursorX
-   140  0961 a93b               	lda #59
-   141  0963 8528               	sta CursorY
-   142  0965 c627               	dec CursorX
-   143  0967 fa                 	plx
-   144  0968 7a                 	ply
-   145  0969 68                 	pla
-   146  096a 48                 	pha
-   147  096b 5a                 	phy
-   148  096c da                 	phx
-   149  096d a94f               	lda #79
-   150  096f 8527               	sta CursorX
-   151  0971 a93b               	lda #59
-   152  0973 8528               	sta CursorY
-   153  0975 c627               	dec CursorX
-   154  0977 fa                 	plx
-   155  0978 7a                 	ply
-   156  0979 68                 	pla
-   157  097a 48                 	pha
-   158  097b 5a                 	phy
-   159  097c da                 	phx
-   160  097d a94f               	lda #79
-   161  097f 8527               	sta CursorX
-   162  0981 a93b               	lda #59
-   163  0983 8528               	sta CursorY
-   164  0985 c627               	dec CursorX
-   165  0987 fa                 	plx
-   166  0988 7a                 	ply
-   167  0989 68                 	pla
-   168  098a 48                 	pha
-   169  098b 5a                 	phy
-   170  098c da                 	phx
-   171  098d a94f               	lda #79
-   172  098f 8527               	sta CursorX
-   173  0991 a93b               	lda #59
-   174  0993 8528               	sta CursorY
-   175  0995 c627               	dec CursorX
-   176  0997 fa                 	plx
-   177  0998 7a                 	ply
-   178  0999 68                 	pla
-   179  099a 48                 	pha
-   180  099b 5a                 	phy
-   181  099c da                 	phx
-   182  099d a94f               	lda #79
-   183  099f 8527               	sta CursorX
-   184  09a1 a93b               	lda #59
-   185  09a3 8528               	sta CursorY
-   186  09a5 c627               	dec CursorX
-   187  09a7 fa                 	plx
-   188  09a8 7a                 	ply
-   189  09a9 68                 	pla
-   190  09aa 48                 	pha
-   191  09ab 5a                 	phy
-   192  09ac da                 	phx
-   193  09ad a94f               	lda #79
-   194  09af 8527               	sta CursorX
-   195  09b1 a93b               	lda #59
-   196  09b3 8528               	sta CursorY
-   197  09b5 c627               	dec CursorX
-   198  09b7 fa                 	plx
-   199  09b8 7a                 	ply
-   200  09b9 68                 	pla
-   201  09ba 48                 	pha
-   202  09bb 5a                 	phy
-   203  09bc da                 	phx
-   204  09bd a94f               	lda #79
-   205  09bf 8527               	sta CursorX
-   206  09c1 a93b               	lda #59
-   207  09c3 8528               	sta CursorY
-   208  09c5 c627               	dec CursorX
-   209  09c7 fa                 	plx
-   210  09c8 7a                 	ply
-   211  09c9 68                 	pla
-   212  09ca 48                 	pha
-   213  09cb 5a                 	phy
-   214  09cc da                 	phx
-   215  09cd a94f               	lda #79
-   216  09cf 8527               	sta CursorX
-   217  09d1 a93b               	lda #59
-   218  09d3 8528               	sta CursorY
-   219  09d5 c627               	dec CursorX
-   220  09d7 fa                 	plx
-   221  09d8 7a                 	ply
-   222  09d9 68                 	pla
-   223  09da 48                 	pha
-   224  09db 5a                 	phy
-   225  09dc da                 	phx
-   226  09dd a94f               	lda #79
-   227  09df 8527               	sta CursorX
-   228  09e1 a93b               	lda #59
-   229  09e3 8528               	sta CursorY
-   230  09e5 c627               	dec CursorX
-   231  09e7 fa                 	plx
-   232  09e8 7a                 	ply
-   233  09e9 68                 	pla
-   234  09ea 48                 	pha
-   235  09eb 5a                 	phy
-   236  09ec da                 	phx
-   237  09ed a94f               	lda #79
-   238  09ef 8527               	sta CursorX
-   239  09f1 a93b               	lda #59
-   240  09f3 8528               	sta CursorY
-   241  09f5 c627               	dec CursorX
-   242  09f7 fa                 	plx
-   243  09f8 7a                 	ply
-   244  09f9 68                 	pla
-   245  09fa 48                 	pha
-   246  09fb 5a                 	phy
-   247  09fc da                 	phx
-   248  09fd a94f               	lda #79
-   249  09ff 8527               	sta CursorX
-   250  0a01 a93b               	lda #59
-   251  0a03 8528               	sta CursorY
-   252  0a05 c627               	dec CursorX
-   253  0a07 fa                 	plx
-   254  0a08 7a                 	ply
-   255  0a09 68                 	pla
-   256  0a0a 48                 	pha
-   257  0a0b 5a                 	phy
-   258  0a0c da                 	phx
-   259  0a0d a94f               	lda #79
-   260  0a0f 8527               	sta CursorX
-   261  0a11 a93b               	lda #59
-   262  0a13 8528               	sta CursorY
-   263  0a15 c627               	dec CursorX
-   264  0a17 fa                 	plx
-   265  0a18 7a                 	ply
-   266  0a19 68                 	pla
-   267  0a1a 48                 	pha
-   268  0a1b 5a                 	phy
-   269  0a1c da                 	phx
-   270  0a1d a94f               	lda #79
-   271  0a1f 8527               	sta CursorX
-   272  0a21 a93b               	lda #59
-   273  0a23 8528               	sta CursorY
-   274  0a25 c627               	dec CursorX
-   275  0a27 fa                 	plx
-   276  0a28 7a                 	ply
-   277  0a29 68                 	pla
-   278  0a2a 48                 	pha
-   279  0a2b 5a                 	phy
-   280  0a2c da                 	phx
-   281  0a2d a94f               	lda #79
-   282  0a2f 8527               	sta CursorX
-   283  0a31 a93b               	lda #59
-   284  0a33 8528               	sta CursorY
-   285  0a35 c627               	dec CursorX
-   286  0a37 fa                 	plx
-   287  0a38 7a                 	ply
-   288  0a39 68                 	pla
-   289  0a3a 48                 	pha
-   290  0a3b 5a                 	phy
-   291  0a3c da                 	phx
-   292  0a3d a94f               	lda #79
-   293  0a3f 8527               	sta CursorX
-   294  0a41 a93b               	lda #59
-   295  0a43 8528               	sta CursorY
-   296  0a45 c627               	dec CursorX
-   297  0a47 fa                 	plx
-   298  0a48 7a                 	ply
-   299  0a49 68                 	pla
-   300  0a4a 48                 	pha
-   301  0a4b 5a                 	phy
-   302  0a4c da                 	phx
-   303  0a4d a94f               	lda #79
-   304  0a4f 8527               	sta CursorX
-   305  0a51 a93b               	lda #59
-   306  0a53 8528               	sta CursorY
-   307  0a55 c627               	dec CursorX
-   308  0a57 fa                 	plx
-   309  0a58 7a                 	ply
-   310  0a59 68                 	pla
-   311  0a5a 48                 	pha
-   312  0a5b 5a                 	phy
-   313  0a5c da                 	phx
-   314  0a5d a94f               	lda #79
-   315  0a5f 8527               	sta CursorX
-   316  0a61 a93b               	lda #59
-   317  0a63 8528               	sta CursorY
-   318  0a65 c627               	dec CursorX
-   319  0a67 fa                 	plx
-   320  0a68 7a                 	ply
-   321  0a69 68                 	pla
-   322  0a6a 48                 	pha
-   323  0a6b 5a                 	phy
-   324  0a6c da                 	phx
-   325  0a6d a94f               	lda #79
-   326  0a6f 8527               	sta CursorX
-   327  0a71 a93b               	lda #59
-   328  0a73 8528               	sta CursorY
-   329  0a75 c627               	dec CursorX
-   330  0a77 fa                 	plx
-   331  0a78 7a                 	ply
-   332  0a79 68                 	pla
-   333  0a7a 48                 	pha
-   334  0a7b 5a                 	phy
-   335  0a7c da                 	phx
-   336  0a7d a94f               	lda #79
-   337  0a7f 8527               	sta CursorX
-   338  0a81 a93b               	lda #59
-   339  0a83 8528               	sta CursorY
-   340  0a85 c627               	dec CursorX
-   341  0a87 fa                 	plx
-   342  0a88 7a                 	ply
-   343  0a89 68                 	pla
-   344  0a8a 48                 	pha
-   345  0a8b 5a                 	phy
-   346  0a8c da                 	phx
-   347  0a8d a94f               	lda #79
-   348  0a8f 8527               	sta CursorX
-   349  0a91 a93b               	lda #59
-   350  0a93 8528               	sta CursorY
-   351  0a95 c627               	dec CursorX
-   352  0a97 fa                 	plx
-   353  0a98 7a                 	ply
-   354  0a99 68                 	pla
-   355  0a9a 48                 	pha
-   356  0a9b 5a                 	phy
-   357  0a9c da                 	phx
-   358  0a9d a94f               	lda #79
-   359  0a9f 8527               	sta CursorX
-   360  0aa1 a93b               	lda #59
-   361  0aa3 8528               	sta CursorY
-   362  0aa5 c627               	dec CursorX
-   363  0aa7 fa                 	plx
-   364  0aa8 7a                 	ply
-   365  0aa9 68                 	pla
-   366  0aaa 48                 	pha
-   367  0aab 5a                 	phy
-   368  0aac da                 	phx
-   369  0aad a94f               	lda #79
-   370  0aaf 8527               	sta CursorX
-   371  0ab1 a93b               	lda #59
-   372  0ab3 8528               	sta CursorY
-   373  0ab5 c627               	dec CursorX
-   374  0ab7 fa                 	plx
-   375  0ab8 7a                 	ply
-   376  0ab9 68                 	pla
-   377  0aba 48                 	pha
-   378  0abb 5a                 	phy
-   379  0abc da                 	phx
-   380  0abd a94f               	lda #79
-   381  0abf 8527               	sta CursorX
-   382  0ac1 a93b               	lda #59
-   383  0ac3 8528               	sta CursorY
-   384  0ac5 c627               	dec CursorX
-   385  0ac7 fa                 	plx
-   386  0ac8 7a                 	ply
-   387  0ac9 68                 	pla
-   388  0aca 48                 	pha
-   389  0acb 5a                 	phy
-   390  0acc da                 	phx
-   391  0acd a94f               	lda #79
-   392  0acf 8527               	sta CursorX
-   393  0ad1 a93b               	lda #59
-   394  0ad3 8528               	sta CursorY
-   395  0ad5 c627               	dec CursorX
-   396  0ad7 fa                 	plx
-   397  0ad8 7a                 	ply
-   398  0ad9 68                 	pla
-   399  0ada 48                 	pha
-   400  0adb 5a                 	phy
-   401  0adc da                 	phx
-   402  0add a94f               	lda #79
-   403  0adf 8527               	sta CursorX
-   404  0ae1 a93b               	lda #59
-   405  0ae3 8528               	sta CursorY
-   406  0ae5 c627               	dec CursorX
-   407  0ae7 fa                 	plx
-   408  0ae8 7a                 	ply
-   409  0ae9 68                 	pla
-   410  0aea 48                 	pha
-   411  0aeb 5a                 	phy
-   412  0aec da                 	phx
-   413  0aed a94f               	lda #79
-   414  0aef 8527               	sta CursorX
-   415  0af1 a93b               	lda #59
-   416  0af3 8528               	sta CursorY
-   417  0af5 c627               	dec CursorX
-   418  0af7 fa                 	plx
-   419  0af8 7a                 	ply
-   420  0af9 68                 	pla
-   421  0afa 48                 	pha
-   422  0afb 5a                 	phy
-   423  0afc da                 	phx
-   424  0afd a94f               	lda #79
-   425  0aff 8527               	sta CursorX
-   426  0b01 a93b               	lda #59
-   427  0b03 8528               	sta CursorY
-   428  0b05 c627               	dec CursorX
-   429  0b07 fa                 	plx
-   430  0b08 7a                 	ply
-   431  0b09 68                 	pla
-   432  0b0a 48                 	pha
-   433  0b0b 5a                 	phy
-   434  0b0c da                 	phx
-   435  0b0d a94f               	lda #79
-   436  0b0f 8527               	sta CursorX
-   437  0b11 a93b               	lda #59
-   438  0b13 8528               	sta CursorY
-   439  0b15 c627               	dec CursorX
-   440  0b17 fa                 	plx
-   441  0b18 7a                 	ply
-   442  0b19 68                 	pla
-   443  0b1a 48                 	pha
-   444  0b1b 5a                 	phy
-   445  0b1c da                 	phx
-   446  0b1d a94f               	lda #79
-   447  0b1f 8527               	sta CursorX
-   448  0b21 a93b               	lda #59
-   449  0b23 8528               	sta CursorY
-   450  0b25 c627               	dec CursorX
-   451  0b27 fa                 	plx
-   452  0b28 7a                 	ply
-   453  0b29 68                 	pla
-   454  0b2a 48                 	pha
-   455  0b2b 5a                 	phy
-   456  0b2c da                 	phx
-   457  0b2d a94f               	lda #79
-   458  0b2f 8527               	sta CursorX
-   459  0b31 a93b               	lda #59
-   460  0b33 8528               	sta CursorY
-   461  0b35 c627               	dec CursorX
-   462  0b37 fa                 	plx
-   463  0b38 7a                 	ply
-   464  0b39 68                 	pla
-   465  0b3a 48                 	pha
-   466  0b3b 5a                 	phy
-   467  0b3c da                 	phx
-   468  0b3d a94f               	lda #79
-   469  0b3f 8527               	sta CursorX
-   470  0b41 a93b               	lda #59
-   471  0b43 8528               	sta CursorY
-   472  0b45 c627               	dec CursorX
-   473  0b47 fa                 	plx
-   474  0b48 7a                 	ply
-   475  0b49 68                 	pla
-   476  0b4a ea                 	nop
-   477  0b4b ea                 	nop
-   478  0b4c ea                 	nop
-   479  0b4d ea                 	nop
-   480  0b4e ea                 	nop
-   481  0b4f ea                 	nop
-   482  0b50 ea                 	nop
-   483  0b51 ea                 	nop
-   484  0b52 ea                 	nop
-   485  0b53 ea                 	nop
-   486  0b54 ea                 	nop
-   487  0b55 ea                 	nop
-   488  0b56 ea                 	nop
-   489  0b57 ea                 	nop
-   490  0b58 ea                 	nop
-   491  0b59 ea                 	nop
-   492  0b5a ea                 	nop
-   493  0b5b ea                 	nop
-   494  0b5c ea                 	nop
-   495  0b5d ea                 	nop
-   496  0b5e ea                 	nop
-   497  0b5f ea                 	nop
-   498  0b60 ea                 	nop
-   499  0b61 ea                 	nop
-   500  0b62 ea                 	nop
-   501  0b63 ea                 	nop
-   502  0b64 ea                 	nop
-   503  0b65 ea                 	nop
-   504  0b66 ea                 	nop
-   505  0b67 ea                 	nop
-   506  0b68 ea                 	nop
-   507  0b69 ea                 	nop
-   508  0b6a ea                 	nop
-   509  0b6b ea                 	nop
-   510  0b6c ea                 	nop
-   511  0b6d ea                 	nop
-   512  0b6e ea                 	nop
-   513  0b6f ea                 	nop
-   514  0b70 ea                 	nop
-   515  0b71 ea                 	nop
-   516  0b72 ea                 	nop
-   517  0b73 ea                 	nop
-   518  0b74 ea                 	nop
-   519  0b75 ea                 	nop
-   520  0b76 ea                 	nop
-   521  0b77 ea                 	nop
-   522  0b78 ea                 	nop
-   523  0b79 ea                 	nop
-   524  0b7a ea                 	nop
-   525  0b7b ea                 	nop
-   526  0b7c ea                 	nop
-   527  0b7d ea                 	nop
-   528  0b7e ea                 	nop
-   529  0b7f ea                 	nop
-   530  0b80 ea                 	nop
-   531  0b81 ea                 	nop
-   532  0b82 ea                 	nop
-   533  0b83 ea                 	nop
-   534  0b84 ea                 	nop
-   535  0b85 ea                 	nop
-   536  0b86 ea                 	nop
-   537  0b87 ea                 	nop
-   538  0b88 ea                 	nop
-   539  0b89 ea                 	nop
-   540  0b8a ea                 	nop
-   541  0b8b ea                 	nop
-   542  0b8c ea                 	nop
-   543  0b8d ea                 	nop
-   544  0b8e ea                 	nop
-   545  0b8f ea                 	nop
-   546  0b90 ea                 	nop
-   547  0b91 ea                 	nop
-   548  0b92 ea                 	nop
-   549  0b93 ea                 	nop
-   550  0b94 ea                 	nop
-   551  0b95 ea                 	nop
-   552  0b96 ea                 	nop
-   553  0b97 ea                 	nop
-   554  0b98 ea                 	nop
-   555  0b99 ea                 	nop
-   556  0b9a ea                 	nop
-   557  0b9b ea                 	nop
-   558  0b9c ea                 	nop
-   559  0b9d ea                 	nop
-   560  0b9e ea                 	nop
-   561  0b9f ea                 	nop
-   562  0ba0 ea                 	nop
-   563  0ba1 ea                 	nop
-   564  0ba2 ea                 	nop
-   565  0ba3 ea                 	nop
-   566  0ba4 ea                 	nop
-   567  0ba5 ea                 	nop
-   568  0ba6 ea                 	nop
-   569  0ba7 ea                 	nop
-   570  0ba8 ea                 	nop
-   571  0ba9 ea                 	nop
-   572  0baa ea                 	nop
-   573  0bab ea                 	nop
-   574  0bac ea                 	nop
-   575  0bad ea                 	nop
-   576  0bae ea                 	nop
-   577  0baf ea                 	nop
-   578  0bb0 ea                 	nop
-   579  0bb1 ea                 	nop
-   580  0bb2 ea                 	nop
-   581  0bb3 ea                 	nop
-   582  0bb4 ea                 	nop
-   583  0bb5 ea                 	nop
-   584  0bb6 ea                 	nop
-   585  0bb7 ea                 	nop
-   586  0bb8 ea                 	nop
-   587  0bb9 ea                 	nop
-   588  0bba ea                 	nop
-   589  0bbb ea                 	nop
-   590  0bbc ea                 	nop
-   591  0bbd ea                 	nop
-   592  0bbe ea                 	nop
-   593  0bbf ea                 	nop
-   594  0bc0 ea                 	nop
-   595  0bc1 ea                 	nop
-   596  0bc2 ea                 	nop
-   597  0bc3 ea                 	nop
-   598  0bc4 ea                 	nop
-   599  0bc5 ea                 	nop
-   600  0bc6 ea                 	nop
-   601  0bc7 ea                 	nop
-   602  0bc8 ea                 	nop
-   603  0bc9 ea                 	nop
-   604  0bca ea                 	nop
-   605  0bcb ea                 	nop
-   606  0bcc ea                 	nop
-   607  0bcd ea                 	nop
-   608  0bce ea                 	nop
-   609  0bcf ea                 	nop
-   610  0bd0 ea                 	nop
-   611  0bd1 ea                 	nop
-   612  0bd2 ea                 	nop
-   613  0bd3 ea                 	nop
-   614  0bd4 ea                 	nop
-   615  0bd5 ea                 	nop
-   616  0bd6 ea                 	nop
-   617  0bd7 ea                 	nop
-   618  0bd8 ea                 	nop
-   619  0bd9 ea                 	nop
-   620  0bda ea                 	nop
-   621  0bdb ea                 	nop
-   622  0bdc ea                 	nop
-   623  0bdd ea                 	nop
-   624  0bde ea                 	nop
-   625  0bdf ea                 	nop
-   626  0be0 ea                 	nop
-   627  0be1 ea                 	nop
-   628  0be2 ea                 	nop
-   629  0be3 ea                 	nop
-   630  0be4 ea                 	nop
-   631  0be5 ea                 	nop
-   632  0be6 ea                 	nop
-   633  0be7 ea                 	nop
-   634  0be8 ea                 	nop
-   635  0be9 ea                 	nop
-   636  0bea ea                 	nop
-   637  0beb ea                 	nop
-   638  0bec ea                 	nop
-   639  0bed ea                 	nop
-   640  0bee ea                 	nop
-   641  0bef ea                 	nop
-   642  0bf0 ea                 	nop
-   643  0bf1 ea                 	nop
-   644  0bf2 ea                 	nop
-   645  0bf3 ea                 	nop
-   646  0bf4 ea                 	nop
-   647  0bf5 ea                 	nop
-   648  0bf6 ea                 	nop
-   649  0bf7 ea                 	nop
-   650  0bf8 ea                 	nop
-   651  0bf9 ea                 	nop
-   652  0bfa ea                 	nop
-   653  0bfb ea                 	nop
-   654  0bfc ea                 	nop
-   655  0bfd ea                 	nop
-   656  0bfe ea                 	nop
-   657  0bff ea                 	nop
-   658  0c00 ea                 	nop
-   659  0c01 ea                 	nop
-   660  0c02 ea                 	nop
-   661  0c03 ea                 	nop
-   662  0c04 ea                 	nop
-   663  0c05 ea                 	nop
-   664  0c06 ea                 	nop
-   665  0c07 ea                 	nop
-   666  0c08 ea                 	nop
-   667  0c09 ea                 	nop
-   668  0c0a ea                 	nop
-   669  0c0b ea                 	nop
-   670  0c0c ea                 	nop
-   671  0c0d ea                 	nop
-   672  0c0e ea                 	nop
-   673  0c0f ea                 	nop
-   674  0c10 ea                 	nop
-   675  0c11 ea                 	nop
-   676  0c12 ea                 	nop
-   677  0c13 ea                 	nop
-   678  0c14 ea                 	nop
-   679  0c15 ea                 	nop
-   680  0c16 ea                 	nop
-   681  0c17 ea                 	nop
-   682  0c18 ea                 	nop
-   683  0c19 ea                 	nop
-   684  0c1a ea                 	nop
-   685  0c1b ea                 	nop
-   686  0c1c ea                 	nop
-   687  0c1d ea                 	nop
-   688  0c1e ea                 	nop
-   689  0c1f ea                 	nop
-   690  0c20 ea                 	nop
-   691  0c21 ea                 	nop
-   692  0c22 ea                 	nop
-   693  0c23 ea                 	nop
-   694  0c24 ea                 	nop
-   695  0c25 ea                 	nop
-   696  0c26 ea                 	nop
-   697  0c27 ea                 	nop
-   698  0c28 ea                 	nop
-   699  0c29 ea                 	nop
-   700  0c2a ea                 	nop
-   701  0c2b ea                 	nop
-   702  0c2c ea                 	nop
-   703  0c2d ea                 	nop
-   704  0c2e ea                 	nop
-   705  0c2f ea                 	nop
-   706  0c30 ea                 	nop
-   707  0c31 ea                 	nop
-   708  0c32 ea                 	nop
-   709  0c33 ea                 	nop
-   710  0c34 ea                 	nop
-   711  0c35 ea                 	nop
-   712  0c36 ea                 	nop
-   713  0c37 ea                 	nop
-   714  0c38 ea                 	nop
-   715  0c39 ea                 	nop
-   716  0c3a ea                 	nop
-   717  0c3b ea                 	nop
-   718  0c3c ea                 	nop
-   719  0c3d ea                 	nop
-   720  0c3e ea                 	nop
-   721  0c3f ea                 	nop
-   722  0c40 ea                 	nop
-   723  0c41 ea                 	nop
-   724  0c42 ea                 	nop
-   725  0c43 ea                 	nop
-   726  0c44 ea                 	nop
-   727  0c45 ea                 	nop
-   728  0c46 ea                 	nop
-   729  0c47 ea                 	nop
-   730  0c48 ea                 	nop
-   731  0c49 ea                 	nop
-   732  0c4a ea                 	nop
-   733  0c4b ea                 	nop
-   734  0c4c ea                 	nop
-   735  0c4d ea                 	nop
-   736  0c4e ea                 	nop
-   737  0c4f ea                 	nop
-   738  0c50 ea                 	nop
-   739  0c51 ea                 	nop
-   740  0c52 ea                 	nop
-   741  0c53 ea                 	nop
-   742  0c54 ea                 	nop
-   743  0c55 ea                 	nop
-   744  0c56 ea                 	nop
-   745  0c57 ea                 	nop
-   746  0c58 ea                 	nop
-   747  0c59 ea                 	nop
-   748  0c5a ea                 	nop
-   749  0c5b ea                 	nop
-   750  0c5c ea                 	nop
-   751  0c5d ea                 	nop
-   752  0c5e ea                 	nop
-   753  0c5f ea                 	nop
-   754  0c60 ea                 	nop
-   755  0c61 ea                 	nop
-   756  0c62 ea                 	nop
-   757  0c63 ea                 	nop
-   758  0c64 ea                 	nop
-   759  0c65 ea                 	nop
-   760  0c66 ea                 	nop
-   761  0c67 ea                 	nop
-   762  0c68 ea                 	nop
-   763  0c69 ea                 	nop
-   764  0c6a ea                 	nop
-   765  0c6b ea                 	nop
-   766  0c6c ea                 	nop
-   767  0c6d ea                 	nop
-   768  0c6e ea                 	nop
-   769  0c6f ea                 	nop
-   770  0c70 ea                 	nop
-   771  0c71 ea                 	nop
-   772  0c72 ea                 	nop
-   773  0c73 ea                 	nop
-   774  0c74 ea                 	nop
-   775  0c75 ea                 	nop
-   776  0c76 ea                 	nop
-   777  0c77 ea                 	nop
-   778  0c78 ea                 	nop
-   779  0c79 ea                 	nop
-   780  0c7a ea                 	nop
-   781  0c7b ea                 	nop
-   782  0c7c ea                 	nop
-   783  0c7d ea                 	nop
-   784  0c7e ea                 	nop
-   785  0c7f ea                 	nop
-   786  0c80 ea                 	nop
-   787  0c81 ea                 	nop
-   788  0c82 ea                 	nop
-   789  0c83 ea                 	nop
-   790  0c84 ea                 	nop
-   791  0c85 ea                 	nop
-   792  0c86 ea                 	nop
-   793  0c87 ea                 	nop
-   794  0c88 ea                 	nop
-   795  0c89 ea                 	nop
-   796  0c8a ea                 	nop
-   797  0c8b ea                 	nop
-   798  0c8c ea                 	nop
-   799  0c8d ea                 	nop
-   800  0c8e ea                 	nop
-   801  0c8f ea                 	nop
-   802  0c90 ea                 	nop
-   803  0c91 ea                 	nop
-   804  0c92 ea                 	nop
-   805  0c93 ea                 	nop
-   806  0c94 ea                 	nop
-   807  0c95 ea                 	nop
-   808  0c96 ea                 	nop
-   809  0c97 ea                 	nop
-   810  0c98 ea                 	nop
-   811  0c99 ea                 	nop
-   812  0c9a ea                 	nop
-   813  0c9b ea                 	nop
-   814  0c9c ea                 	nop
-   815  0c9d ea                 	nop
-   816  0c9e ea                 	nop
-   817  0c9f ea                 	nop
-   818  0ca0 ea                 	nop
-   819  0ca1 ea                 	nop
-   820  0ca2 ea                 	nop
-   821  0ca3 ea                 	nop
-   822  0ca4 ea                 	nop
-   823  0ca5 ea                 	nop
-   824  0ca6 ea                 	nop
-   825  0ca7 ea                 	nop
-   826  0ca8 ea                 	nop
-   827  0ca9 ea                 	nop
-   828  0caa ea                 	nop
-   829  0cab ea                 	nop
-   830  0cac ea                 	nop
-   831  0cad ea                 	nop
-   832  0cae ea                 	nop
-   833  0caf ea                 	nop
-   834  0cb0 ea                 	nop
-   835  0cb1 ea                 	nop
-   836  0cb2 ea                 	nop
-   837  0cb3 ea                 	nop
-   838  0cb4 ea                 	nop
-   839  0cb5 ea                 	nop
-   840  0cb6 ea                 	nop
-   841  0cb7 ea                 	nop
-   842  0cb8 ea                 	nop
-   843  0cb9 ea                 	nop
-   844  0cba ea                 	nop
-   845  0cbb ea                 	nop
-   846  0cbc ea                 	nop
-   847  0cbd ea                 	nop
-   848  0cbe ea                 	nop
-   849  0cbf ea                 	nop
-   850  0cc0 ea                 	nop
-   851  0cc1 ea                 	nop
-   852  0cc2 ea                 	nop
-   853  0cc3 ea                 	nop
-   854  0cc4 ea                 	nop
-   855  0cc5 ea                 	nop
-   856  0cc6 ea                 	nop
-   857  0cc7 ea                 	nop
-   858  0cc8 ea                 	nop
-   859  0cc9 ea                 	nop
-   860  0cca ea                 	nop
-   861  0ccb ea                 	nop
-   862  0ccc ea                 	nop
-   863  0ccd ea                 	nop
-   864  0cce ea                 	nop
-   865  0ccf ea                 	nop
-   866  0cd0 ea                 	nop
-   867  0cd1 ea                 	nop
-   868  0cd2 ea                 	nop
-   869  0cd3 ea                 	nop
-   870  0cd4 ea                 	nop
-   871  0cd5 ea                 	nop
-   872  0cd6 ea                 	nop
-   873  0cd7 ea                 	nop
-   874  0cd8 ea                 	nop
-   875  0cd9 ea                 	nop
-   876  0cda ea                 	nop
-   877  0cdb ea                 	nop
-   878  0cdc ea                 	nop
-   879  0cdd ea                 	nop
-   880  0cde ea                 	nop
-   881  0cdf ea                 	nop
-   882  0ce0 ea                 	nop
-   883  0ce1 ea                 	nop
-   884  0ce2 ea                 	nop
-   885  0ce3 ea                 	nop
-   886  0ce4 ea                 	nop
-   887  0ce5 ea                 	nop
-   888  0ce6 ea                 	nop
-   889  0ce7 ea                 	nop
-   890  0ce8 ea                 	nop
-   891  0ce9 ea                 	nop
-   892  0cea ea                 	nop
-   893  0ceb ea                 	nop
-   894  0cec ea                 	nop
-   895  0ced ea                 	nop
-   896  0cee ea                 	nop
-   897  0cef ea                 	nop
-   898  0cf0 ea                 	nop
-   899  0cf1 ea                 	nop
-   900  0cf2 ea                 	nop
-   901  0cf3 ea                 	nop
-   902  0cf4 ea                 	nop
-   903  0cf5 ea                 	nop
-   904  0cf6 ea                 	nop
-   905  0cf7 ea                 	nop
-   906  0cf8 ea                 	nop
-   907  0cf9 ea                 	nop
-   908  0cfa ea                 	nop
-   909  0cfb ea                 	nop
-   910  0cfc ea                 	nop
-   911  0cfd ea                 	nop
-   912  0cfe ea                 	nop
-   913  0cff ea                 	nop
-   914  0d00 ea                 	nop
-   915  0d01 ea                 	nop
-   916  0d02 ea                 	nop
-   917  0d03 ea                 	nop
-   918  0d04 ea                 	nop
-   919  0d05 ea                 	nop
-   920  0d06 ea                 	nop
-   921  0d07 ea                 	nop
-   922  0d08 ea                 	nop
-   923  0d09 ea                 	nop
-   924  0d0a ea                 	nop
-   925  0d0b ea                 	nop
-   926  0d0c ea                 	nop
-   927  0d0d ea                 	nop
-   928  0d0e ea                 	nop
-   929  0d0f ea                 	nop
-   930  0d10 ea                 	nop
-   931  0d11 ea                 	nop
-   932  0d12 ea                 	nop
-   933  0d13 ea                 	nop
-   934  0d14 ea                 	nop
-   935  0d15 ea                 	nop
-   936  0d16 ea                 	nop
-   937  0d17 ea                 	nop
-   938  0d18 ea                 	nop
-   939  0d19 ea                 	nop
-   940  0d1a ea                 	nop
-   941  0d1b ea                 	nop
-   942  0d1c ea                 	nop
-   943  0d1d ea                 	nop
-   944  0d1e ea                 	nop
-   945  0d1f ea                 	nop
-   946  0d20 ea                 	nop
-   947  0d21 ea                 	nop
-   948  0d22 ea                 	nop
-   949  0d23 ea                 	nop
-   950  0d24 ea                 	nop
-   951  0d25 ea                 	nop
-   952  0d26 ea                 	nop
-   953  0d27 ea                 	nop
-   954  0d28 ea                 	nop
-   955  0d29 ea                 	nop
-   956  0d2a ea                 	nop
-   957  0d2b ea                 	nop
-   958  0d2c ea                 	nop
-   959  0d2d ea                 	nop
-   960  0d2e ea                 	nop
-   961  0d2f ea                 	nop
-   962  0d30 ea                 	nop
-   963  0d31 ea                 	nop
-   964  0d32 ea                 	nop
-   965  0d33 ea                 	nop
-   966  0d34 ea                 	nop
-   967  0d35 ea                 	nop
-   968  0d36 ea                 	nop
-   969  0d37 ea                 	nop
-   970  0d38 ea                 	nop
-   971  0d39 ea                 	nop
-   972  0d3a ea                 	nop
-   973  0d3b ea                 	nop
-   974  0d3c ea                 	nop
-   975  0d3d ea                 	nop
-   976  0d3e ea                 	nop
-   977  0d3f ea                 	nop
-   978  0d40 ea                 	nop
-   979  0d41 ea                 	nop
-   980  0d42 ea                 	nop
-   981  0d43 ea                 	nop
-   982  0d44 ea                 	nop
-   983  0d45 ea                 	nop
-   984  0d46 ea                 	nop
-   985  0d47 ea                 	nop
-   986  0d48 ea                 	nop
-   987  0d49 ea                 	nop
-   988  0d4a ea                 	nop
-   989  0d4b ea                 	nop
-   990  0d4c ea                 	nop
-   991  0d4d ea                 	nop
-   992  0d4e ea                 	nop
-   993  0d4f ea                 	nop
-   994  0d50 ea                 	nop
-   995  0d51 ea                 	nop
-   996  0d52 ea                 	nop
-   997  0d53 ea                 	nop
-   998  0d54 60                 	rts		; Return to caller
-   999                          
+     2                          initlist:
+     3  08d1 48                 	pha
+     4  08d2 5a                 	phy
+     5  08d3 a9a5               	lda #<.actions		; address the action list
+     6  08d5 8536               	sta mkll
+     7  08d7 a909               	lda #>.actions
+     8  08d9 8537               	sta mklh 
+     9  08db a000               	ldy #0
+    10  08dd 8438               	sty mkly		; store zero in mkly so list addition begins at the start
+    11  08df a9ff               	lda #255		; store end of list FF in three bytes
+    12  08e1 9136               	sta (mkll),y
+    13  08e3 c8                 	iny
+    14  08e4 9136               	sta (mkll),y
+    15  08e6 c8                 	iny
+    16  08e7 9136               	sta (mkll),y
+    17  08e9 7a                 	ply
+    18  08ea 68                 	pla
+    19  08eb 60                 	rts
+    20                          
+    21                          storeaction:
+    22  08ec 48                 	pha
+    23  08ed 5a                 	phy
+    24  08ee da                 	phx
+    25  08ef a438               	ldy mkly		; pick up list index
+    26  08f1 a53b               	lda sc			; character to store
+    27  08f3 9136               	sta (mkll),y
+    28  08f5 c8                 	iny
+    29  08f6 c900               	cmp #0 			; rolled over?
+    30  08f8 f018               	beq storeinc1	        ; yes! inc the high addr
+    31                          storecharx:
+    32  08fa a539               	lda sx			; x position to set char
+    33  08fc 9136               	sta (mkll),y
+    34  08fe c8                 	iny
+    35  08ff c900               	cmp #0 			; rolled over?           
+    36  0901 f017               	beq storeinc2	        ; yes! inc the high addr
+    37                          storechary:
+    38  0903 a53a               	lda sy
+    39  0905 9136               	sta (mkll),y
+    40  0907 c8                 	iny
+    41  0908 c900               	cmp #0			; rolled over?
+    42  090a f016               	beq storeinc3		; yes! inc the high addr
+    43                          storechardone:
+    44  090c 8438               	sty mkly		; store away the index for the next addition
+    45  090e fa                 	plx
+    46  090f 7a                 	ply
+    47  0910 68                 	pla
+    48  0911 60                 	rts			
+    49                          storeinc1:
+    50  0912 a537               	lda mklh
+    51  0914 1a                 	inc 
+    52  0915 8537               	sta mklh
+    53  0917 4cfa08             	jmp storecharx
+    54                          storeinc2:
+    55  091a a537               	lda mklh
+    56  091c 1a                 	inc 
+    57  091d 8537               	sta mklh
+    58  091f 4c0309             	jmp storechary
+    59                          storeinc3:
+    60  0922 a537               	lda mklh
+    61  0924 1a                 	inc 
+    62  0925 8537               	sta mklh
+    63  0927 4c0c09             	jmp storechardone
 
 ; ******** Source: gol1.asm
-    77                          	; removing this src, even though its labels are never called
-    78                          				; will make it work gagin
-    79                          	
-    80                          
-    81                          fullscreen:
-    82  0d55 a94f               	lda #79
-    83  0d57 8527               	sta CursorX
-    84  0d59 a93b               	lda #59
-    85  0d5b 8528               	sta CursorY
-    86                          goleft:
-    87  0d5d 20680d             	jsr column
-    88  0d60 c627               	dec CursorX
-    89  0d62 d0f9               	bne goleft
-    90  0d64 20680d             	jsr column
-    91  0d67 60                 	rts		; Return to caller
-    92                          
-    93                          column:
-    94  0d68 20770d             	jsr veraprint
-    95  0d6b c628               	dec CursorY
-    96  0d6d d0f9               	bne column
-    97  0d6f 20770d             	jsr veraprint
-    98  0d72 a93b               	lda #59
-    99  0d74 8528               	sta CursorY
-   100  0d76 60                 	rts
-   101                          	
-   102                          
-   103                          veraprint:
-   104  0d77 48                 	pha
-   105  0d78 5a                 	phy
-   106  0d79 da                 	phx
-   107                          	; set the memory addr
-   108  0d7a 20950d             	jsr sexy
-   109                          	; send the char to VERA at x y
-   110  0d7d a429               	ldy Character
-   111  0d7f 8c239f             	sty veradat
-   112  0d82 a42a               	ldy Colour
-   113  0d84 8c239f             	sty veradat
-   114  0d87 fa                 	plx
-   115  0d88 7a                 	ply
-   116  0d89 68                 	pla
-   117  0d8a 60                 	rts
-   118                          
-   119                          SetVeraADDR:             
-   120                                                  
-   121                          		; A contains vera Hi addr,
-   122                          		; Y contains vera mid
-   123                          		; X contains vera lo
-   124                          
-   125                          		; -- comment - could I use X and Y regs directly
-   126                          		; -- instead of my Zero page surrogates? Hmm
+   112                          	; removing this src, even though its labels are never called
+   113                          				; will make it work gagin
+   114                          	
+   115                          
+   116                          fullscreen:
+   117  092a a94f               	lda #79
+   118  092c 8527               	sta CursorX
+   119  092e a93b               	lda #59
+   120  0930 8528               	sta CursorY
+   121                          goleft:
+   122  0932 203d09             	jsr column
+   123  0935 c627               	dec CursorX
+   124  0937 d0f9               	bne goleft
+   125  0939 203d09             	jsr column
+   126  093c 60                 	rts		; Return to caller
    127                          
-   128  0d8b 8d229f                             sta verahi
-   129  0d8e 8c219f                             sty veramid
-   130  0d91 8e209f                             stx veralo
-   131  0d94 60                 		rts
-   132                          
-   133                          sexy:
-   134  0d95 a527               		lda CursorX
-   135  0d97 0a                 		asl  ; mul 2
-   136  0d98 aa                 		tax ; put lo byte into x
-   137  0d99 a900               		lda #0
-   138  0d9b 2a                 		rol  ; get 9th bit
-   139  0d9c 6528               		adc CursorY ; add Y*256 effectivly
-   140  0d9e a8                 		tay ; put mi byte into y
-   141  0d9f a910               		lda #$10 ; set incremement
-   142  0da1 208b0d             		jsr SetVeraADDR
-   143  0da4 60                 		rts
-   144                          
-   145  0da5 54455354494e4720....string !pet	"testing x y coords - waiting for enter...",13,0
+   128                          column:
+   129  093d 204c09             	jsr veraprint
+   130  0940 c628               	dec CursorY
+   131  0942 d0f9               	bne column
+   132  0944 204c09             	jsr veraprint
+   133  0947 a93b               	lda #59
+   134  0949 8528               	sta CursorY
+   135  094b 60                 	rts
+   136                          	
+   137                          
+   138                          veraprint:
+   139  094c 48                 	pha
+   140  094d 5a                 	phy
+   141  094e da                 	phx
+   142                          	; set the memory addr
+   143  094f 206a09             	jsr sexy
+   144                          	; send the char to VERA at x y
+   145  0952 a429               	ldy Character
+   146  0954 8c239f             	sty veradat
+   147  0957 a42a               	ldy Colour
+   148  0959 8c239f             	sty veradat
+   149  095c fa                 	plx
+   150  095d 7a                 	ply
+   151  095e 68                 	pla
+   152  095f 60                 	rts
+   153                          
+   154                          SetVeraADDR:             
+   155                                                  
+   156                          		; A contains vera Hi addr,
+   157                          		; Y contains vera mid
+   158                          		; X contains vera lo
+   159                          
+   160                          		; -- comment - could I use X and Y regs directly
+   161                          		; -- instead of my Zero page surrogates? Hmm
+   162                          
+   163  0960 8d229f                             sta verahi
+   164  0963 8c219f                             sty veramid
+   165  0966 8e209f                             stx veralo
+   166  0969 60                 		rts
+   167                          
+   168                          sexy:
+   169  096a a527               		lda CursorX
+   170  096c 0a                 		asl  ; mul 2
+   171  096d aa                 		tax ; put lo byte into x
+   172  096e a900               		lda #0
+   173  0970 2a                 		rol  ; get 9th bit
+   174  0971 6528               		adc CursorY ; add Y*256 effectivly
+   175  0973 a8                 		tay ; put mi byte into y
+   176  0974 a910               		lda #$10 ; set incremement
+   177  0976 206009             		jsr SetVeraADDR
+   178  0979 60                 		rts
+   179                          
+   180  097a 54455354494e4720....string !pet	"testing x y coords - waiting for enter...",13,0
 
 ; ******** Source: grid.inc
      1                          .actions
-     2  0dd0 2a0000             !byte $2A,$00,$00
-     3  0dd3 2a4f00             !byte $2A,$4F,$00
-     4  0dd6 2a0101             !byte $2A,$01,$01
-     5  0dd9 2a4e01             !byte $2A,$4E,$01
-     6  0ddc 2a0202             !byte $2A,$02,$02
-     7  0ddf 2a4d02             !byte $2A,$4D,$02
-     8  0de2 2a0303             !byte $2A,$03,$03
-     9  0de5 2a4c03             !byte $2A,$4C,$03
-    10  0de8 2a0404             !byte $2A,$04,$04
-    11  0deb 2a4b04             !byte $2A,$4B,$04
-    12  0dee 2a0505             !byte $2A,$05,$05
-    13  0df1 2a4a05             !byte $2A,$4A,$05
-    14  0df4 2a0606             !byte $2A,$06,$06
-    15  0df7 2a4906             !byte $2A,$49,$06
-    16  0dfa 2a0707             !byte $2A,$07,$07
-    17  0dfd 2a4807             !byte $2A,$48,$07
-    18  0e00 2a0808             !byte $2A,$08,$08
-    19  0e03 2a4708             !byte $2A,$47,$08
-    20  0e06 2a0909             !byte $2A,$09,$09
-    21  0e09 2a4609             !byte $2A,$46,$09
-    22  0e0c 2a0a0a             !byte $2A,$0A,$0A
-    23  0e0f 2a450a             !byte $2A,$45,$0A
-    24  0e12 2a0b0b             !byte $2A,$0B,$0B
-    25  0e15 2a440b             !byte $2A,$44,$0B
-    26  0e18 2a0c0c             !byte $2A,$0C,$0C
-    27  0e1b 2a430c             !byte $2A,$43,$0C
-    28  0e1e 2a0d0d             !byte $2A,$0D,$0D
-    29  0e21 2a420d             !byte $2A,$42,$0D
-    30  0e24 2a0e0e             !byte $2A,$0E,$0E
-    31  0e27 2a410e             !byte $2A,$41,$0E
-    32  0e2a 2a0f0f             !byte $2A,$0F,$0F
-    33  0e2d 2a400f             !byte $2A,$40,$0F
-    34  0e30 2a1010             !byte $2A,$10,$10
-    35  0e33 2a3f10             !byte $2A,$3F,$10
-    36  0e36 2a1111             !byte $2A,$11,$11
-    37  0e39 2a3e11             !byte $2A,$3E,$11
-    38  0e3c 2a1212             !byte $2A,$12,$12
-    39  0e3f 2a3d12             !byte $2A,$3D,$12
-    40  0e42 2a1313             !byte $2A,$13,$13
-    41  0e45 2a3c13             !byte $2A,$3C,$13
-    42  0e48 2a1414             !byte $2A,$14,$14
-    43  0e4b 2a3b14             !byte $2A,$3B,$14
-    44  0e4e 2a1515             !byte $2A,$15,$15
-    45  0e51 2a3a15             !byte $2A,$3A,$15
-    46  0e54 2a1616             !byte $2A,$16,$16
-    47  0e57 2a3916             !byte $2A,$39,$16
-    48  0e5a 2a1717             !byte $2A,$17,$17
-    49  0e5d 2a3817             !byte $2A,$38,$17
-    50  0e60 2a1818             !byte $2A,$18,$18
-    51  0e63 2a3718             !byte $2A,$37,$18
-    52  0e66 2a1919             !byte $2A,$19,$19
-    53  0e69 2a3619             !byte $2A,$36,$19
-    54  0e6c 2a1a1a             !byte $2A,$1A,$1A
-    55  0e6f 2a351a             !byte $2A,$35,$1A
-    56  0e72 2a1b1b             !byte $2A,$1B,$1B
-    57  0e75 2a341b             !byte $2A,$34,$1B
-    58  0e78 2a1c1c             !byte $2A,$1C,$1C
-    59  0e7b 2a251c             !byte $2A,$25,$1C
-    60  0e7e 2a261c             !byte $2A,$26,$1C
-    61  0e81 2a271c             !byte $2A,$27,$1C
-    62  0e84 2a281c             !byte $2A,$28,$1C
-    63  0e87 2a291c             !byte $2A,$29,$1C
-    64  0e8a 2a2a1c             !byte $2A,$2A,$1C
-    65  0e8d 2a2b1c             !byte $2A,$2B,$1C
-    66  0e90 2a331c             !byte $2A,$33,$1C
-    67  0e93 2a1d1d             !byte $2A,$1D,$1D
-    68  0e96 2a251d             !byte $2A,$25,$1D
-    69  0e99 2a281d             !byte $2A,$28,$1D
-    70  0e9c 2a2b1d             !byte $2A,$2B,$1D
-    71  0e9f 2a321d             !byte $2A,$32,$1D
-    72  0ea2 2a1e1e             !byte $2A,$1E,$1E
-    73  0ea5 2a1f1e             !byte $2A,$1F,$1E
-    74  0ea8 2a201e             !byte $2A,$20,$1E
-    75  0eab 2a211e             !byte $2A,$21,$1E
-    76  0eae 2a221e             !byte $2A,$22,$1E
-    77  0eb1 2a231e             !byte $2A,$23,$1E
-    78  0eb4 2a241e             !byte $2A,$24,$1E
-    79  0eb7 2a251e             !byte $2A,$25,$1E
-    80  0eba 2a261e             !byte $2A,$26,$1E
-    81  0ebd 2a271e             !byte $2A,$27,$1E
-    82  0ec0 2a281e             !byte $2A,$28,$1E
-    83  0ec3 2a291e             !byte $2A,$29,$1E
-    84  0ec6 2a2a1e             !byte $2A,$2A,$1E
-    85  0ec9 2a2b1e             !byte $2A,$2B,$1E
-    86  0ecc 2a2c1e             !byte $2A,$2C,$1E
-    87  0ecf 2a2d1e             !byte $2A,$2D,$1E
-    88  0ed2 2a2e1e             !byte $2A,$2E,$1E
-    89  0ed5 2a2f1e             !byte $2A,$2F,$1E
-    90  0ed8 2a301e             !byte $2A,$30,$1E
-    91  0edb 2a311e             !byte $2A,$31,$1E
-    92  0ede 2a3f22             !byte $2A,$3F,$22
-    93  0ee1 2a4022             !byte $2A,$40,$22
-    94  0ee4 2a4122             !byte $2A,$41,$22
-    95  0ee7 2a4222             !byte $2A,$42,$22
-    96  0eea 2a4322             !byte $2A,$43,$22
-    97  0eed 2a4422             !byte $2A,$44,$22
-    98  0ef0 2a4522             !byte $2A,$45,$22
-    99  0ef3 2a4622             !byte $2A,$46,$22
-   100  0ef6 2a4722             !byte $2A,$47,$22
-   101  0ef9 2a4822             !byte $2A,$48,$22
-   102  0efc 2a4922             !byte $2A,$49,$22
-   103  0eff 2a4a22             !byte $2A,$4A,$22
-   104  0f02 2a4b22             !byte $2A,$4B,$22
-   105  0f05 2a4c22             !byte $2A,$4C,$22
-   106  0f08 2a4d22             !byte $2A,$4D,$22
-   107  0f0b 2a4023             !byte $2A,$40,$23
-   108  0f0e 2a4c23             !byte $2A,$4C,$23
-   109  0f11 2a0024             !byte $2A,$00,$24
-   110  0f14 2a4124             !byte $2A,$41,$24
-   111  0f17 2a4b24             !byte $2A,$4B,$24
-   112  0f1a 2a0125             !byte $2A,$01,$25
-   113  0f1d 2a4225             !byte $2A,$42,$25
-   114  0f20 2a4a25             !byte $2A,$4A,$25
-   115  0f23 2a0226             !byte $2A,$02,$26
-   116  0f26 2a2526             !byte $2A,$25,$26
-   117  0f29 2a2626             !byte $2A,$26,$26
-   118  0f2c 2a2726             !byte $2A,$27,$26
-   119  0f2f 2a2826             !byte $2A,$28,$26
-   120  0f32 2a2926             !byte $2A,$29,$26
-   121  0f35 2a2a26             !byte $2A,$2A,$26
-   122  0f38 2a4326             !byte $2A,$43,$26
-   123  0f3b 2a4926             !byte $2A,$49,$26
-   124  0f3e 2a0327             !byte $2A,$03,$27
-   125  0f41 2a2427             !byte $2A,$24,$27
-   126  0f44 2a2527             !byte $2A,$25,$27
-   127  0f47 2a2627             !byte $2A,$26,$27
-   128  0f4a 2a2727             !byte $2A,$27,$27
-   129  0f4d 2a2827             !byte $2A,$28,$27
-   130  0f50 2a2927             !byte $2A,$29,$27
-   131  0f53 2a2a27             !byte $2A,$2A,$27
-   132  0f56 2a4427             !byte $2A,$44,$27
-   133  0f59 2a4827             !byte $2A,$48,$27
-   134  0f5c 2a0428             !byte $2A,$04,$28
-   135  0f5f 2a1628             !byte $2A,$16,$28
-   136  0f62 2a1728             !byte $2A,$17,$28
-   137  0f65 2a1828             !byte $2A,$18,$28
-   138  0f68 2a1928             !byte $2A,$19,$28
-   139  0f6b 2a1a28             !byte $2A,$1A,$28
-   140  0f6e 2a2328             !byte $2A,$23,$28
-   141  0f71 2a2428             !byte $2A,$24,$28
-   142  0f74 2a2a28             !byte $2A,$2A,$28
-   143  0f77 2a2b28             !byte $2A,$2B,$28
-   144  0f7a 2a2c28             !byte $2A,$2C,$28
-   145  0f7d 2a2d28             !byte $2A,$2D,$28
-   146  0f80 2a2e28             !byte $2A,$2E,$28
-   147  0f83 2a2f28             !byte $2A,$2F,$28
-   148  0f86 2a3028             !byte $2A,$30,$28
-   149  0f89 2a4528             !byte $2A,$45,$28
-   150  0f8c 2a4628             !byte $2A,$46,$28
-   151  0f8f 2a4728             !byte $2A,$47,$28
-   152  0f92 2a0029             !byte $2A,$00,$29
-   153  0f95 2a0529             !byte $2A,$05,$29
-   154  0f98 2a1629             !byte $2A,$16,$29
-   155  0f9b 2a1b29             !byte $2A,$1B,$29
-   156  0f9e 2a2229             !byte $2A,$22,$29
-   157  0fa1 2a2329             !byte $2A,$23,$29
-   158  0fa4 2a2a29             !byte $2A,$2A,$29
-   159  0fa7 2a2b29             !byte $2A,$2B,$29
-   160  0faa 2a2c29             !byte $2A,$2C,$29
-   161  0fad 2a2d29             !byte $2A,$2D,$29
-   162  0fb0 2a2e29             !byte $2A,$2E,$29
-   163  0fb3 2a2f29             !byte $2A,$2F,$29
-   164  0fb6 2a4429             !byte $2A,$44,$29
-   165  0fb9 2a4629             !byte $2A,$46,$29
-   166  0fbc 2a4829             !byte $2A,$48,$29
-   167  0fbf 2a012a             !byte $2A,$01,$2A
-   168  0fc2 2a062a             !byte $2A,$06,$2A
-   169  0fc5 2a162a             !byte $2A,$16,$2A
-   170  0fc8 2a1c2a             !byte $2A,$1C,$2A
-   171  0fcb 2a222a             !byte $2A,$22,$2A
-   172  0fce 2a232a             !byte $2A,$23,$2A
-   173  0fd1 2a2a2a             !byte $2A,$2A,$2A
-   174  0fd4 2a2b2a             !byte $2A,$2B,$2A
-   175  0fd7 2a2c2a             !byte $2A,$2C,$2A
-   176  0fda 2a2d2a             !byte $2A,$2D,$2A
-   177  0fdd 2a2e2a             !byte $2A,$2E,$2A
-   178  0fe0 2a432a             !byte $2A,$43,$2A
-   179  0fe3 2a462a             !byte $2A,$46,$2A
-   180  0fe6 2a492a             !byte $2A,$49,$2A
-   181  0fe9 2a002b             !byte $2A,$00,$2B
-   182  0fec 2a012b             !byte $2A,$01,$2B
-   183  0fef 2a022b             !byte $2A,$02,$2B
-   184  0ff2 2a032b             !byte $2A,$03,$2B
-   185  0ff5 2a042b             !byte $2A,$04,$2B
-   186  0ff8 2a052b             !byte $2A,$05,$2B
-   187  0ffb 2a062b             !byte $2A,$06,$2B
-   188  0ffe 2a072b             !byte $2A,$07,$2B
-   189  1001 2a082b             !byte $2A,$08,$2B
-   190  1004 2a092b             !byte $2A,$09,$2B
-   191  1007 2a0a2b             !byte $2A,$0A,$2B
-   192  100a 2a0b2b             !byte $2A,$0B,$2B
-   193  100d 2a0c2b             !byte $2A,$0C,$2B
-   194  1010 2a0d2b             !byte $2A,$0D,$2B
-   195  1013 2a0e2b             !byte $2A,$0E,$2B
-   196  1016 2a0f2b             !byte $2A,$0F,$2B
-   197  1019 2a102b             !byte $2A,$10,$2B
-   198  101c 2a112b             !byte $2A,$11,$2B
-   199  101f 2a122b             !byte $2A,$12,$2B
-   200  1022 2a132b             !byte $2A,$13,$2B
-   201  1025 2a142b             !byte $2A,$14,$2B
-   202  1028 2a152b             !byte $2A,$15,$2B
-   203  102b 2a162b             !byte $2A,$16,$2B
-   204  102e 2a1c2b             !byte $2A,$1C,$2B
-   205  1031 2a1d2b             !byte $2A,$1D,$2B
-   206  1034 2a222b             !byte $2A,$22,$2B
-   207  1037 2a232b             !byte $2A,$23,$2B
-   208  103a 2a422b             !byte $2A,$42,$2B
-   209  103d 2a432b             !byte $2A,$43,$2B
-   210  1040 2a442b             !byte $2A,$44,$2B
-   211  1043 2a452b             !byte $2A,$45,$2B
-   212  1046 2a462b             !byte $2A,$46,$2B
-   213  1049 2a472b             !byte $2A,$47,$2B
-   214  104c 2a482b             !byte $2A,$48,$2B
-   215  104f 2a492b             !byte $2A,$49,$2B
-   216  1052 2a4a2b             !byte $2A,$4A,$2B
-   217  1055 2a012c             !byte $2A,$01,$2C
-   218  1058 2a062c             !byte $2A,$06,$2C
-   219  105b 2a162c             !byte $2A,$16,$2C
-   220  105e 2a1c2c             !byte $2A,$1C,$2C
-   221  1061 2a222c             !byte $2A,$22,$2C
-   222  1064 2a232c             !byte $2A,$23,$2C
-   223  1067 2a2a2c             !byte $2A,$2A,$2C
-   224  106a 2a2b2c             !byte $2A,$2B,$2C
-   225  106d 2a2c2c             !byte $2A,$2C,$2C
-   226  1070 2a2d2c             !byte $2A,$2D,$2C
-   227  1073 2a422c             !byte $2A,$42,$2C
-   228  1076 2a462c             !byte $2A,$46,$2C
-   229  1079 2a4a2c             !byte $2A,$4A,$2C
-   230  107c 2a002d             !byte $2A,$00,$2D
-   231  107f 2a052d             !byte $2A,$05,$2D
-   232  1082 2a162d             !byte $2A,$16,$2D
-   233  1085 2a1b2d             !byte $2A,$1B,$2D
-   234  1088 2a222d             !byte $2A,$22,$2D
-   235  108b 2a232d             !byte $2A,$23,$2D
-   236  108e 2a2a2d             !byte $2A,$2A,$2D
-   237  1091 2a2b2d             !byte $2A,$2B,$2D
-   238  1094 2a2c2d             !byte $2A,$2C,$2D
-   239  1097 2a2d2d             !byte $2A,$2D,$2D
-   240  109a 2a2e2d             !byte $2A,$2E,$2D
-   241  109d 2a432d             !byte $2A,$43,$2D
-   242  10a0 2a462d             !byte $2A,$46,$2D
-   243  10a3 2a492d             !byte $2A,$49,$2D
-   244  10a6 2a042e             !byte $2A,$04,$2E
-   245  10a9 2a162e             !byte $2A,$16,$2E
-   246  10ac 2a172e             !byte $2A,$17,$2E
-   247  10af 2a182e             !byte $2A,$18,$2E
-   248  10b2 2a192e             !byte $2A,$19,$2E
-   249  10b5 2a1a2e             !byte $2A,$1A,$2E
-   250  10b8 2a232e             !byte $2A,$23,$2E
-   251  10bb 2a242e             !byte $2A,$24,$2E
-   252  10be 2a2a2e             !byte $2A,$2A,$2E
-   253  10c1 2a2b2e             !byte $2A,$2B,$2E
-   254  10c4 2a2c2e             !byte $2A,$2C,$2E
-   255  10c7 2a2d2e             !byte $2A,$2D,$2E
-   256  10ca 2a2e2e             !byte $2A,$2E,$2E
-   257  10cd 2a2f2e             !byte $2A,$2F,$2E
-   258  10d0 2a442e             !byte $2A,$44,$2E
-   259  10d3 2a462e             !byte $2A,$46,$2E
-   260  10d6 2a482e             !byte $2A,$48,$2E
-   261  10d9 2a032f             !byte $2A,$03,$2F
-   262  10dc 2a242f             !byte $2A,$24,$2F
-   263  10df 2a252f             !byte $2A,$25,$2F
-   264  10e2 2a262f             !byte $2A,$26,$2F
-   265  10e5 2a272f             !byte $2A,$27,$2F
-   266  10e8 2a282f             !byte $2A,$28,$2F
-   267  10eb 2a292f             !byte $2A,$29,$2F
-   268  10ee 2a2a2f             !byte $2A,$2A,$2F
-   269  10f1 2a452f             !byte $2A,$45,$2F
-   270  10f4 2a462f             !byte $2A,$46,$2F
-   271  10f7 2a472f             !byte $2A,$47,$2F
-   272  10fa 2a0230             !byte $2A,$02,$30
-   273  10fd 2a2430             !byte $2A,$24,$30
-   274  1100 2a2530             !byte $2A,$25,$30
-   275  1103 2a2630             !byte $2A,$26,$30
-   276  1106 2a2730             !byte $2A,$27,$30
-   277  1109 2a2830             !byte $2A,$28,$30
-   278  110c 2a2930             !byte $2A,$29,$30
-   279  110f 2a2a30             !byte $2A,$2A,$30
-   280  1112 2a0131             !byte $2A,$01,$31
-   281  1115 2a0032             !byte $2A,$00,$32
-   282  1118 2a0932             !byte $2A,$09,$32
-   283  111b 2a4632             !byte $2A,$46,$32
-   284  111e 2a0833             !byte $2A,$08,$33
-   285  1121 2a4733             !byte $2A,$47,$33
-   286  1124 2a0734             !byte $2A,$07,$34
-   287  1127 2a4834             !byte $2A,$48,$34
-   288  112a 2a0635             !byte $2A,$06,$35
-   289  112d 2a4935             !byte $2A,$49,$35
-   290  1130 2a0536             !byte $2A,$05,$36
-   291  1133 2a4a36             !byte $2A,$4A,$36
-   292  1136 2a0437             !byte $2A,$04,$37
-   293  1139 2a4b37             !byte $2A,$4B,$37
-   294  113c 2a0338             !byte $2A,$03,$38
-   295  113f 2a4c38             !byte $2A,$4C,$38
-   296  1142 2a0239             !byte $2A,$02,$39
-   297  1145 2a4d39             !byte $2A,$4D,$39
-   298  1148 2a013a             !byte $2A,$01,$3A
-   299  114b 2a4e3a             !byte $2A,$4E,$3A
-   300  114e 2a003b             !byte $2A,$00,$3B
-   301  1151 2a4f3b             !byte $2A,$4F,$3B
-   302  1154 ffffff             !byte $FF,$FF,$FF
+     2  09a5 2a0000             !byte $2A,$00,$00
+     3  09a8 2a4f00             !byte $2A,$4F,$00
+     4  09ab 2a0101             !byte $2A,$01,$01
+     5  09ae 2a4e01             !byte $2A,$4E,$01
+     6  09b1 2a0202             !byte $2A,$02,$02
+     7  09b4 2a4d02             !byte $2A,$4D,$02
+     8  09b7 2a0303             !byte $2A,$03,$03
+     9  09ba 2a4c03             !byte $2A,$4C,$03
+    10  09bd 2a0404             !byte $2A,$04,$04
+    11  09c0 2a4b04             !byte $2A,$4B,$04
+    12  09c3 2a0505             !byte $2A,$05,$05
+    13  09c6 2a4a05             !byte $2A,$4A,$05
+    14  09c9 2a0606             !byte $2A,$06,$06
+    15  09cc 2a4906             !byte $2A,$49,$06
+    16  09cf 2a0707             !byte $2A,$07,$07
+    17  09d2 2a4807             !byte $2A,$48,$07
+    18  09d5 2a0808             !byte $2A,$08,$08
+    19  09d8 2a4708             !byte $2A,$47,$08
+    20  09db 2a0909             !byte $2A,$09,$09
+    21  09de 2a4609             !byte $2A,$46,$09
+    22  09e1 2a0a0a             !byte $2A,$0A,$0A
+    23  09e4 2a450a             !byte $2A,$45,$0A
+    24  09e7 2a0b0b             !byte $2A,$0B,$0B
+    25  09ea 2a440b             !byte $2A,$44,$0B
+    26  09ed 2a0c0c             !byte $2A,$0C,$0C
+    27  09f0 2a430c             !byte $2A,$43,$0C
+    28  09f3 2a0d0d             !byte $2A,$0D,$0D
+    29  09f6 2a420d             !byte $2A,$42,$0D
+    30  09f9 2a0e0e             !byte $2A,$0E,$0E
+    31  09fc 2a410e             !byte $2A,$41,$0E
+    32  09ff 2a0f0f             !byte $2A,$0F,$0F
+    33  0a02 2a400f             !byte $2A,$40,$0F
+    34  0a05 2a1010             !byte $2A,$10,$10
+    35  0a08 2a3f10             !byte $2A,$3F,$10
+    36  0a0b 2a1111             !byte $2A,$11,$11
+    37  0a0e 2a3e11             !byte $2A,$3E,$11
+    38  0a11 2a1212             !byte $2A,$12,$12
+    39  0a14 2a3d12             !byte $2A,$3D,$12
+    40  0a17 2a1313             !byte $2A,$13,$13
+    41  0a1a 2a3c13             !byte $2A,$3C,$13
+    42  0a1d 2a1414             !byte $2A,$14,$14
+    43  0a20 2a3b14             !byte $2A,$3B,$14
+    44  0a23 2a1515             !byte $2A,$15,$15
+    45  0a26 2a3a15             !byte $2A,$3A,$15
+    46  0a29 2a1616             !byte $2A,$16,$16
+    47  0a2c 2a3916             !byte $2A,$39,$16
+    48  0a2f 2a1717             !byte $2A,$17,$17
+    49  0a32 2a3817             !byte $2A,$38,$17
+    50  0a35 2a1818             !byte $2A,$18,$18
+    51  0a38 2a3718             !byte $2A,$37,$18
+    52  0a3b 2a1919             !byte $2A,$19,$19
+    53  0a3e 2a3619             !byte $2A,$36,$19
+    54  0a41 2a1a1a             !byte $2A,$1A,$1A
+    55  0a44 2a351a             !byte $2A,$35,$1A
+    56  0a47 2a1b1b             !byte $2A,$1B,$1B
+    57  0a4a 2a341b             !byte $2A,$34,$1B
+    58  0a4d 2a1c1c             !byte $2A,$1C,$1C
+    59  0a50 2a251c             !byte $2A,$25,$1C
+    60  0a53 2a261c             !byte $2A,$26,$1C
+    61  0a56 2a271c             !byte $2A,$27,$1C
+    62  0a59 2a281c             !byte $2A,$28,$1C
+    63  0a5c 2a291c             !byte $2A,$29,$1C
+    64  0a5f 2a2a1c             !byte $2A,$2A,$1C
+    65  0a62 2a2b1c             !byte $2A,$2B,$1C
+    66  0a65 2a331c             !byte $2A,$33,$1C
+    67  0a68 2a1d1d             !byte $2A,$1D,$1D
+    68  0a6b 2a251d             !byte $2A,$25,$1D
+    69  0a6e 2a281d             !byte $2A,$28,$1D
+    70  0a71 2a2b1d             !byte $2A,$2B,$1D
+    71  0a74 2a321d             !byte $2A,$32,$1D
+    72  0a77 2a1e1e             !byte $2A,$1E,$1E
+    73  0a7a 2a1f1e             !byte $2A,$1F,$1E
+    74  0a7d 2a201e             !byte $2A,$20,$1E
+    75  0a80 2a211e             !byte $2A,$21,$1E
+    76  0a83 2a221e             !byte $2A,$22,$1E
+    77  0a86 2a231e             !byte $2A,$23,$1E
+    78  0a89 2a241e             !byte $2A,$24,$1E
+    79  0a8c 2a251e             !byte $2A,$25,$1E
+    80  0a8f 2a261e             !byte $2A,$26,$1E
+    81  0a92 2a271e             !byte $2A,$27,$1E
+    82  0a95 2a281e             !byte $2A,$28,$1E
+    83  0a98 2a291e             !byte $2A,$29,$1E
+    84  0a9b 2a2a1e             !byte $2A,$2A,$1E
+    85  0a9e 2a2b1e             !byte $2A,$2B,$1E
+    86  0aa1 2a2c1e             !byte $2A,$2C,$1E
+    87  0aa4 2a2d1e             !byte $2A,$2D,$1E
+    88  0aa7 2a2e1e             !byte $2A,$2E,$1E
+    89  0aaa 2a2f1e             !byte $2A,$2F,$1E
+    90  0aad 2a301e             !byte $2A,$30,$1E
+    91  0ab0 2a311e             !byte $2A,$31,$1E
+    92  0ab3 2a3f22             !byte $2A,$3F,$22
+    93  0ab6 2a4022             !byte $2A,$40,$22
+    94  0ab9 2a4122             !byte $2A,$41,$22
+    95  0abc 2a4222             !byte $2A,$42,$22
+    96  0abf 2a4322             !byte $2A,$43,$22
+    97  0ac2 2a4422             !byte $2A,$44,$22
+    98  0ac5 2a4522             !byte $2A,$45,$22
+    99  0ac8 2a4622             !byte $2A,$46,$22
+   100  0acb 2a4722             !byte $2A,$47,$22
+   101  0ace 2a4822             !byte $2A,$48,$22
+   102  0ad1 2a4922             !byte $2A,$49,$22
+   103  0ad4 2a4a22             !byte $2A,$4A,$22
+   104  0ad7 2a4b22             !byte $2A,$4B,$22
+   105  0ada 2a4c22             !byte $2A,$4C,$22
+   106  0add 2a4d22             !byte $2A,$4D,$22
+   107  0ae0 2a4023             !byte $2A,$40,$23
+   108  0ae3 2a4c23             !byte $2A,$4C,$23
+   109  0ae6 2a0024             !byte $2A,$00,$24
+   110  0ae9 2a4124             !byte $2A,$41,$24
+   111  0aec 2a4b24             !byte $2A,$4B,$24
+   112  0aef 2a0125             !byte $2A,$01,$25
+   113  0af2 2a4225             !byte $2A,$42,$25
+   114  0af5 2a4a25             !byte $2A,$4A,$25
+   115  0af8 2a0226             !byte $2A,$02,$26
+   116  0afb 2a2526             !byte $2A,$25,$26
+   117  0afe 2a2626             !byte $2A,$26,$26
+   118  0b01 2a2726             !byte $2A,$27,$26
+   119  0b04 2a2826             !byte $2A,$28,$26
+   120  0b07 2a2926             !byte $2A,$29,$26
+   121  0b0a 2a2a26             !byte $2A,$2A,$26
+   122  0b0d 2a4326             !byte $2A,$43,$26
+   123  0b10 2a4926             !byte $2A,$49,$26
+   124  0b13 2a0327             !byte $2A,$03,$27
+   125  0b16 2a2427             !byte $2A,$24,$27
+   126  0b19 2a2527             !byte $2A,$25,$27
+   127  0b1c 2a2627             !byte $2A,$26,$27
+   128  0b1f 2a2727             !byte $2A,$27,$27
+   129  0b22 2a2827             !byte $2A,$28,$27
+   130  0b25 2a2927             !byte $2A,$29,$27
+   131  0b28 2a2a27             !byte $2A,$2A,$27
+   132  0b2b 2a4427             !byte $2A,$44,$27
+   133  0b2e 2a4827             !byte $2A,$48,$27
+   134  0b31 2a0428             !byte $2A,$04,$28
+   135  0b34 2a1628             !byte $2A,$16,$28
+   136  0b37 2a1728             !byte $2A,$17,$28
+   137  0b3a 2a1828             !byte $2A,$18,$28
+   138  0b3d 2a1928             !byte $2A,$19,$28
+   139  0b40 2a1a28             !byte $2A,$1A,$28
+   140  0b43 2a2328             !byte $2A,$23,$28
+   141  0b46 2a2428             !byte $2A,$24,$28
+   142  0b49 2a2a28             !byte $2A,$2A,$28
+   143  0b4c 2a2b28             !byte $2A,$2B,$28
+   144  0b4f 2a2c28             !byte $2A,$2C,$28
+   145  0b52 2a2d28             !byte $2A,$2D,$28
+   146  0b55 2a2e28             !byte $2A,$2E,$28
+   147  0b58 2a2f28             !byte $2A,$2F,$28
+   148  0b5b 2a3028             !byte $2A,$30,$28
+   149  0b5e 2a4528             !byte $2A,$45,$28
+   150  0b61 2a4628             !byte $2A,$46,$28
+   151  0b64 2a4728             !byte $2A,$47,$28
+   152  0b67 2a0029             !byte $2A,$00,$29
+   153  0b6a 2a0529             !byte $2A,$05,$29
+   154  0b6d 2a1629             !byte $2A,$16,$29
+   155  0b70 2a1b29             !byte $2A,$1B,$29
+   156  0b73 2a2229             !byte $2A,$22,$29
+   157  0b76 2a2329             !byte $2A,$23,$29
+   158  0b79 2a2a29             !byte $2A,$2A,$29
+   159  0b7c 2a2b29             !byte $2A,$2B,$29
+   160  0b7f 2a2c29             !byte $2A,$2C,$29
+   161  0b82 2a2d29             !byte $2A,$2D,$29
+   162  0b85 2a2e29             !byte $2A,$2E,$29
+   163  0b88 2a2f29             !byte $2A,$2F,$29
+   164  0b8b 2a4429             !byte $2A,$44,$29
+   165  0b8e 2a4629             !byte $2A,$46,$29
+   166  0b91 2a4829             !byte $2A,$48,$29
+   167  0b94 2a012a             !byte $2A,$01,$2A
+   168  0b97 2a062a             !byte $2A,$06,$2A
+   169  0b9a 2a162a             !byte $2A,$16,$2A
+   170  0b9d 2a1c2a             !byte $2A,$1C,$2A
+   171  0ba0 2a222a             !byte $2A,$22,$2A
+   172  0ba3 2a232a             !byte $2A,$23,$2A
+   173  0ba6 2a2a2a             !byte $2A,$2A,$2A
+   174  0ba9 2a2b2a             !byte $2A,$2B,$2A
+   175  0bac 2a2c2a             !byte $2A,$2C,$2A
+   176  0baf 2a2d2a             !byte $2A,$2D,$2A
+   177  0bb2 2a2e2a             !byte $2A,$2E,$2A
+   178  0bb5 2a432a             !byte $2A,$43,$2A
+   179  0bb8 2a462a             !byte $2A,$46,$2A
+   180  0bbb 2a492a             !byte $2A,$49,$2A
+   181  0bbe 2a002b             !byte $2A,$00,$2B
+   182  0bc1 2a012b             !byte $2A,$01,$2B
+   183  0bc4 2a022b             !byte $2A,$02,$2B
+   184  0bc7 2a032b             !byte $2A,$03,$2B
+   185  0bca 2a042b             !byte $2A,$04,$2B
+   186  0bcd 2a052b             !byte $2A,$05,$2B
+   187  0bd0 2a062b             !byte $2A,$06,$2B
+   188  0bd3 2a072b             !byte $2A,$07,$2B
+   189  0bd6 2a082b             !byte $2A,$08,$2B
+   190  0bd9 2a092b             !byte $2A,$09,$2B
+   191  0bdc 2a0a2b             !byte $2A,$0A,$2B
+   192  0bdf 2a0b2b             !byte $2A,$0B,$2B
+   193  0be2 2a0c2b             !byte $2A,$0C,$2B
+   194  0be5 2a0d2b             !byte $2A,$0D,$2B
+   195  0be8 2a0e2b             !byte $2A,$0E,$2B
+   196  0beb 2a0f2b             !byte $2A,$0F,$2B
+   197  0bee 2a102b             !byte $2A,$10,$2B
+   198  0bf1 2a112b             !byte $2A,$11,$2B
+   199  0bf4 2a122b             !byte $2A,$12,$2B
+   200  0bf7 2a132b             !byte $2A,$13,$2B
+   201  0bfa 2a142b             !byte $2A,$14,$2B
+   202  0bfd 2a152b             !byte $2A,$15,$2B
+   203  0c00 2a162b             !byte $2A,$16,$2B
+   204  0c03 2a1c2b             !byte $2A,$1C,$2B
+   205  0c06 2a1d2b             !byte $2A,$1D,$2B
+   206  0c09 2a222b             !byte $2A,$22,$2B
+   207  0c0c 2a232b             !byte $2A,$23,$2B
+   208  0c0f 2a422b             !byte $2A,$42,$2B
+   209  0c12 2a432b             !byte $2A,$43,$2B
+   210  0c15 2a442b             !byte $2A,$44,$2B
+   211  0c18 2a452b             !byte $2A,$45,$2B
+   212  0c1b 2a462b             !byte $2A,$46,$2B
+   213  0c1e 2a472b             !byte $2A,$47,$2B
+   214  0c21 2a482b             !byte $2A,$48,$2B
+   215  0c24 2a492b             !byte $2A,$49,$2B
+   216  0c27 2a4a2b             !byte $2A,$4A,$2B
+   217  0c2a 2a012c             !byte $2A,$01,$2C
+   218  0c2d 2a062c             !byte $2A,$06,$2C
+   219  0c30 2a162c             !byte $2A,$16,$2C
+   220  0c33 2a1c2c             !byte $2A,$1C,$2C
+   221  0c36 2a222c             !byte $2A,$22,$2C
+   222  0c39 2a232c             !byte $2A,$23,$2C
+   223  0c3c 2a2a2c             !byte $2A,$2A,$2C
+   224  0c3f 2a2b2c             !byte $2A,$2B,$2C
+   225  0c42 2a2c2c             !byte $2A,$2C,$2C
+   226  0c45 2a2d2c             !byte $2A,$2D,$2C
+   227  0c48 2a422c             !byte $2A,$42,$2C
+   228  0c4b 2a462c             !byte $2A,$46,$2C
+   229  0c4e 2a4a2c             !byte $2A,$4A,$2C
+   230  0c51 2a002d             !byte $2A,$00,$2D
+   231  0c54 2a052d             !byte $2A,$05,$2D
+   232  0c57 2a162d             !byte $2A,$16,$2D
+   233  0c5a 2a1b2d             !byte $2A,$1B,$2D
+   234  0c5d 2a222d             !byte $2A,$22,$2D
+   235  0c60 2a232d             !byte $2A,$23,$2D
+   236  0c63 2a2a2d             !byte $2A,$2A,$2D
+   237  0c66 2a2b2d             !byte $2A,$2B,$2D
+   238  0c69 2a2c2d             !byte $2A,$2C,$2D
+   239  0c6c 2a2d2d             !byte $2A,$2D,$2D
+   240  0c6f 2a2e2d             !byte $2A,$2E,$2D
+   241  0c72 2a432d             !byte $2A,$43,$2D
+   242  0c75 2a462d             !byte $2A,$46,$2D
+   243  0c78 2a492d             !byte $2A,$49,$2D
+   244  0c7b 2a042e             !byte $2A,$04,$2E
+   245  0c7e 2a162e             !byte $2A,$16,$2E
+   246  0c81 2a172e             !byte $2A,$17,$2E
+   247  0c84 2a182e             !byte $2A,$18,$2E
+   248  0c87 2a192e             !byte $2A,$19,$2E
+   249  0c8a 2a1a2e             !byte $2A,$1A,$2E
+   250  0c8d 2a232e             !byte $2A,$23,$2E
+   251  0c90 2a242e             !byte $2A,$24,$2E
+   252  0c93 2a2a2e             !byte $2A,$2A,$2E
+   253  0c96 2a2b2e             !byte $2A,$2B,$2E
+   254  0c99 2a2c2e             !byte $2A,$2C,$2E
+   255  0c9c 2a2d2e             !byte $2A,$2D,$2E
+   256  0c9f 2a2e2e             !byte $2A,$2E,$2E
+   257  0ca2 2a2f2e             !byte $2A,$2F,$2E
+   258  0ca5 2a442e             !byte $2A,$44,$2E
+   259  0ca8 2a462e             !byte $2A,$46,$2E
+   260  0cab 2a482e             !byte $2A,$48,$2E
+   261  0cae 2a032f             !byte $2A,$03,$2F
+   262  0cb1 2a242f             !byte $2A,$24,$2F
+   263  0cb4 2a252f             !byte $2A,$25,$2F
+   264  0cb7 2a262f             !byte $2A,$26,$2F
+   265  0cba 2a272f             !byte $2A,$27,$2F
+   266  0cbd 2a282f             !byte $2A,$28,$2F
+   267  0cc0 2a292f             !byte $2A,$29,$2F
+   268  0cc3 2a2a2f             !byte $2A,$2A,$2F
+   269  0cc6 2a452f             !byte $2A,$45,$2F
+   270  0cc9 2a462f             !byte $2A,$46,$2F
+   271  0ccc 2a472f             !byte $2A,$47,$2F
+   272  0ccf 2a0230             !byte $2A,$02,$30
+   273  0cd2 2a2430             !byte $2A,$24,$30
+   274  0cd5 2a2530             !byte $2A,$25,$30
+   275  0cd8 2a2630             !byte $2A,$26,$30
+   276  0cdb 2a2730             !byte $2A,$27,$30
+   277  0cde 2a2830             !byte $2A,$28,$30
+   278  0ce1 2a2930             !byte $2A,$29,$30
+   279  0ce4 2a2a30             !byte $2A,$2A,$30
+   280  0ce7 2a0131             !byte $2A,$01,$31
+   281  0cea 2a0032             !byte $2A,$00,$32
+   282  0ced 2a0932             !byte $2A,$09,$32
+   283  0cf0 2a4632             !byte $2A,$46,$32
+   284  0cf3 2a0833             !byte $2A,$08,$33
+   285  0cf6 2a4733             !byte $2A,$47,$33
+   286  0cf9 2a0734             !byte $2A,$07,$34
+   287  0cfc 2a4834             !byte $2A,$48,$34
+   288  0cff 2a0635             !byte $2A,$06,$35
+   289  0d02 2a4935             !byte $2A,$49,$35
+   290  0d05 2a0536             !byte $2A,$05,$36
+   291  0d08 2a4a36             !byte $2A,$4A,$36
+   292  0d0b 2a0437             !byte $2A,$04,$37
+   293  0d0e 2a4b37             !byte $2A,$4B,$37
+   294  0d11 2a0338             !byte $2A,$03,$38
+   295  0d14 2a4c38             !byte $2A,$4C,$38
+   296  0d17 2a0239             !byte $2A,$02,$39
+   297  0d1a 2a4d39             !byte $2A,$4D,$39
+   298  0d1d 2a013a             !byte $2A,$01,$3A
+   299  0d20 2a4e3a             !byte $2A,$4E,$3A
+   300  0d23 2a003b             !byte $2A,$00,$3B
+   301  0d26 2a4f3b             !byte $2A,$4F,$3B
+   302  0d29 ffffff             !byte $FF,$FF,$FF
 
 ; ******** Source: gol1.asm
-   147                          
+   182                          
