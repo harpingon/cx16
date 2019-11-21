@@ -18,8 +18,8 @@ Colour = zr+10
 ach = $58  
 
 aa = zr+14 		;to store regs that would be sent to vera to build action list
-ax = zr+15
-ay = zr+16
+kx = zr+15
+ky = zr+16
 nn = zr+17		;neighbor count
 
 bx = zr+20		; hold current cursor for checking square
@@ -33,6 +33,7 @@ sy = zr+26		; store Y in list
 sc = zr+27		; store char in list
 
 qc = zr+28		; vera character query result
+kc = zr+29		; original cell value          
 
 !src "vera.inc"
 *=$0801			; Assembled code should start at $0801
@@ -82,8 +83,8 @@ neverend:
 	jsr queryscreen
 	jsr readlist
 	
-	jmp neverend
 
+	jmp neverend
 
 	rts
 

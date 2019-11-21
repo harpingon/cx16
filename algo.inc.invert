@@ -1,0 +1,54 @@
+;
+; this test version of algo simply creates an action list to invert the current screen
+;
+queryscreen:
+	lda #79
+	sta CursorX
+	lda #59
+	sta CursorY
+queryleft:
+	jsr querycolumn
+	dec CursorX
+	bne queryleft
+	jsr querycolumn
+	lda #255	; terminate the list
+	sta sx
+	sta sy
+	sta sc
+	jsr storeaction
+	rts		; Return to caller
+
+querycolumn:
+	jsr veraquery
+	jsr invert
+	dec CursorY
+	bne querycolumn
+	jsr veraquery
+	jsr invert
+	lda #59
+	sta CursorY
+	rts
+	
+invert:
+	pha
+	phy
+	phx
+	lda CursorX
+	sta sx
+	lda CursorY
+	sta sy
+	lda qc
+	cmp #$2A 		; was it a star
+	beq invertstar		; yep , make space
+	lda #$2A		; make star
+	sta sc
+	jmp invertstore
+invertstar:
+	lda #32			; make space
+	sta sc
+invertstore:
+	jsr storeaction
+	plx
+	ply
+	pla
+	rts
