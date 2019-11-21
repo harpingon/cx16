@@ -28,17 +28,11 @@ ret3:
 	jsr veraprint
 	jmp readloop
 pageinc1:
-	lda ach+1
-	inc 
-	sta ach+1
+	inc ach+1
 	jmp ret1
 pageinc2:
-	lda ach+1
-	inc 
-	sta ach+1
+	inc ach+1
 	jmp ret2
 pageinc3:
-	lda ach+1
-	inc 
-	sta ach+1
+	inc ach+1
 	jmp ret3

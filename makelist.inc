@@ -27,20 +27,17 @@ storeaction:
 	ldy mkly		; pick up list index
 	lda sc			; character to store
 	sta (mkll),y
-	iny
-	cmp #0 			; rolled over?
+	iny			; rolled over?
 	beq storeinc1	        ; yes! inc the high addr
 storecharx:
 	lda sx			; x position to set char
 	sta (mkll),y
-	iny
-	cmp #0 			; rolled over?           
+	iny			; rolled over?
 	beq storeinc2	        ; yes! inc the high addr
 storechary:
 	lda sy
 	sta (mkll),y
-	iny
-	cmp #0			; rolled over?
+	iny			; rolled over?
 	beq storeinc3		; yes! inc the high addr
 storechardone:
 	sty mkly		; store away the index for the next addition
@@ -49,17 +46,11 @@ storechardone:
 	pla
 	rts			
 storeinc1:
-	lda mklh
-	inc 
-	sta mklh
+	inc mklh
 	jmp storecharx
 storeinc2:
-	lda mklh
-	inc 
-	sta mklh
+	inc mklh
 	jmp storechary
 storeinc3:
-	lda mklh
-	inc 
-	sta mklh
+	inc mklh
 	jmp storechardone

@@ -1,5 +1,5 @@
 python3 gridxy.py > grid.inc
 #python3 gridx.py > grid.inc
 acme --cpu 65C02 -f cbm -r gol1.list -o gol1.prg gol1.asm
-#x16 -debug 085e -dump R -prg gol1.prg
+# x16 -debug 0854 -dump R -prg gol1.prg
 x16  -dump R -prg gol1.prg

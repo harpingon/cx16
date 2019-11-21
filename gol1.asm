@@ -15,7 +15,7 @@ CursorY = zr+8
 Character = zr+9
 Colour = zr+10
 
-ach = zr+12
+ach = $58  
 
 aa = zr+14 		;to store regs that would be sent to vera to build action list
 ax = zr+15
@@ -25,12 +25,14 @@ nn = zr+17		;neighbor count
 bx = zr+20		; hold current cursor for checking square
 by = zr+21
 
-mkll = zr+22		; build a list at this address, initially set to list base
-mklh = zr+23		; high byte
-mkly = zr+24		; store current list Y indirect index register
+mkll = $60		; build a list at this address, initially set to list base
+mklh = mkll+1		; high byte
+mkly = mkll+2		; store current list Y indirect index register
 sx = zr+25		; store X in list
 sy = zr+26		; store Y in list
 sc = zr+27		; store char in list
+
+qc = zr+28		; vera character query result
 
 !src "vera.inc"
 *=$0801			; Assembled code should start at $0801
@@ -68,50 +70,30 @@ start:
 	lda #7 		; yellow
 	sta Colour
 
-	jsr veraprint
+	; 37 , 30
 
 	jsr readlist
 
 	jsr CHRIN
 	jsr CHRIN
 
-	lda #32
-	sta Character
-	jsr fullscreen
-
+neverend:
 	jsr initlist
-
-	lda #$2a
-	sta sc
-	lda #40
-	sta sx
-	sta sy
-	jsr storeaction
-	lda #41
-	sta sx
-	sta sy
-	jsr storeaction
-	lda #42
-	sta sx
-	sta sy
-	jsr storeaction
-	lda #255		; terminate the list
-	sta sx
-	sta sy
-	sta sc
-	jsr storeaction
-
+	jsr queryscreen
 	jsr readlist
+	
+	jmp neverend
+
 
 	rts
 
 
 
-!src "readlist.inc"
+!src "readlist.inc"		; read and implement the action list
 
-!src "makelist.inc"		; removing this src, even though its labels are never called
-				; will make it work gagin
+!src "makelist.inc"		; initialise and allow adding to the action list
 	
+!src "algo.inc"			; the main algorithm
 
 fullscreen:
 	lda #79
@@ -151,14 +133,25 @@ veraprint:
 	pla
 	rts
 
+veraquery:
+	pha
+	phy
+	phx
+	; set the memory addr
+	jsr sexy
+	; send the char to VERA at x y
+	lda veradat
+	sta qc		; store the char we got back
+	plx
+	ply
+	pla
+	rts
+
 SetVeraADDR:             
                         
 		; A contains vera Hi addr,
 		; Y contains vera mid
 		; X contains vera lo
-
-		; -- comment - could I use X and Y regs directly
-		; -- instead of my Zero page surrogates? Hmm
 
                 sta verahi
                 sty veramid

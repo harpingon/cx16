@@ -17,7 +17,7 @@
     15                          Character = zr+9
     16                          Colour = zr+10
     17                          
-    18                          ach = zr+12
+    18                          ach = $58  
     19                          
     20                          aa = zr+14 		;to store regs that would be sent to vera to build action list
     21                          ax = zr+15
@@ -27,13 +27,15 @@
     25                          bx = zr+20		; hold current cursor for checking square
     26                          by = zr+21
     27                          
-    28                          mkll = zr+22		; build a list at this address, initially set to list base
-    29                          mklh = zr+23		; high byte
-    30                          mkly = zr+24		; store current list Y indirect index register
+    28                          mkll = $60		; build a list at this address, initially set to list base
+    29                          mklh = mkll+1		; high byte
+    30                          mkly = mkll+2		; store current list Y indirect index register
     31                          sx = zr+25		; store X in list
     32                          sy = zr+26		; store Y in list
     33                          sc = zr+27		; store char in list
     34                          
+    35                          qc = zr+28		; vera character query result
+    36                          
 
 ; ******** Source: vera.inc
      1                          ; License: Public Domain
@@ -124,569 +126,604 @@
     86                          }
 
 ; ******** Source: gol1.asm
-    36                          *=$0801			; Assembled code should start at $0801
-    37                          			; (where BASIC programs start)
-    38                          			; The real program starts at $0810 = 2064
-    39  0801 0c08               !byte $0C,$08		; $080C - pointer to next line of BASIC code
-    40  0803 0a00               !byte $0A,$00		; 2-byte line number ($000A = 10)
-    41  0805 9e                 !byte $9E		; SYS BASIC token
-    42  0806 20                 !byte $20		; [space]
-    43  0807 32303634           !byte $32,$30,$36,$34	; $32="2",$30="0",$36="6",$34="4"
-    44                          			; (ASCII encoded nums for dec starting addr)
-    45  080b 00                 !byte $00		; End of Line
-    46  080c 0000               !byte $00,$00		; This is address $080C containing
-    47                          			; 2-byte pointer to next line of BASIC code
-    48                          			; ($0000 = end of program)
-    49                          *=$0810			; Here starts the real program
-    50  0810 a9008d259f8d219f...+video_init
-    51  0827 a9108d229fa9008d...+vset $00000 | AUTO_INC_1 ; VRAM bank 0
-    52                          
-    53                          CHROUT=$FFD2		; CHROUT outputs a character (C64 Kernal API)
-    54                          CHRIN=$FFCF		; CHRIN read from default input
-    55                          CURRENT=$0
-    56                          
-    57                          start:
-    58  0836 a920               	lda #32 	; space
-    59  0838 8529               	sta Character
-    60  083a a903               	lda #3		; light blue
-    61  083c 852a               	sta Colour
-    62  083e 202a09             	jsr fullscreen
-    63                          
-    64  0841 a92a               	lda #$2A	; star
-    65  0843 8529               	sta Character
-    66                          
-    67  0845 a902               	lda #2 		; red
-    68  0847 a907               	lda #7 		; yellow
-    69  0849 852a               	sta Colour
-    70                          
-    71  084b 204c09             	jsr veraprint
+    38                          *=$0801			; Assembled code should start at $0801
+    39                          			; (where BASIC programs start)
+    40                          			; The real program starts at $0810 = 2064
+    41  0801 0c08               !byte $0C,$08		; $080C - pointer to next line of BASIC code
+    42  0803 0a00               !byte $0A,$00		; 2-byte line number ($000A = 10)
+    43  0805 9e                 !byte $9E		; SYS BASIC token
+    44  0806 20                 !byte $20		; [space]
+    45  0807 32303634           !byte $32,$30,$36,$34	; $32="2",$30="0",$36="6",$34="4"
+    46                          			; (ASCII encoded nums for dec starting addr)
+    47  080b 00                 !byte $00		; End of Line
+    48  080c 0000               !byte $00,$00		; This is address $080C containing
+    49                          			; 2-byte pointer to next line of BASIC code
+    50                          			; ($0000 = end of program)
+    51                          *=$0810			; Here starts the real program
+    52  0810 a9008d259f8d219f...+video_init
+    53  0827 a9108d229fa9008d...+vset $00000 | AUTO_INC_1 ; VRAM bank 0
+    54                          
+    55                          CHROUT=$FFD2		; CHROUT outputs a character (C64 Kernal API)
+    56                          CHRIN=$FFCF		; CHRIN read from default input
+    57                          CURRENT=$0
+    58                          
+    59                          start:
+    60  0836 a920               	lda #32 	; space
+    61  0838 8529               	sta Character
+    62  083a a903               	lda #3		; light blue
+    63  083c 852a               	sta Colour
+    64  083e 203a09             	jsr fullscreen
+    65                          
+    66  0841 a92a               	lda #$2A	; star
+    67  0843 8529               	sta Character
+    68                          
+    69  0845 a902               	lda #2 		; red
+    70  0847 a907               	lda #7 		; yellow
+    71  0849 852a               	sta Colour
     72                          
-    73  084e 208f08             	jsr readlist
+    73                          	; 37 , 30
     74                          
-    75  0851 20cfff             	jsr CHRIN
-    76  0854 20cfff             	jsr CHRIN
-    77                          
-    78  0857 a920               	lda #32
-    79  0859 8529               	sta Character
-    80  085b 202a09             	jsr fullscreen
-    81                          
-    82  085e 20d108             	jsr initlist
-    83                          
-    84  0861 a92a               	lda #$2a
-    85  0863 853b               	sta sc
-    86  0865 a928               	lda #40
-    87  0867 8539               	sta sx
-    88  0869 853a               	sta sy
-    89  086b 20ec08             	jsr storeaction
-    90  086e a929               	lda #41
-    91  0870 8539               	sta sx
-    92  0872 853a               	sta sy
-    93  0874 20ec08             	jsr storeaction
-    94  0877 a92a               	lda #42
-    95  0879 8539               	sta sx
-    96  087b 853a               	sta sy
-    97  087d 20ec08             	jsr storeaction
-    98  0880 a9ff               	lda #255		; terminate the list
-    99  0882 8539               	sta sx
-   100  0884 853a               	sta sy
-   101  0886 853b               	sta sc
-   102  0888 20ec08             	jsr storeaction
-   103                          
-   104  088b 208f08             	jsr readlist
-   105                          
-   106  088e 60                 	rts
-   107                          
-   108                          
-   109                          
+    75  084b 206108             	jsr readlist
+    76                          
+    77  084e 20cfff             	jsr CHRIN
+    78  0851 20cfff             	jsr CHRIN
+    79                          
+    80                          neverend:
+    81  0854 209a08             	jsr initlist
+    82  0857 20e408             	jsr queryscreen
+    83  085a 206108             	jsr readlist
+    84                          	
+    85  085d 4c5408             	jmp neverend
+    86                          
+    87                          
+    88  0860 60                 	rts
+    89                          
+    90                          
+    91                          
 
 ; ******** Source: readlist.inc
      1                          readlist:
-     2  088f a9a5               	lda #<.actions		; address the action list
-     3  0891 852c               	sta ach
-     4  0893 a209               	ldx #>.actions
-     5  0895 862d               	stx ach+1
-     6  0897 a000               	ldy #0
+     2  0861 a9c4               	lda #<.actions		; address the action list
+     3  0863 8558               	sta ach
+     4  0865 a209               	ldx #>.actions
+     5  0867 8659               	stx ach+1
+     6  0869 a000               	ldy #0
      7                          readloop:
-     8  0899 b12c               	lda (ach),y
-     9  089b c9ff               	cmp #255 		; is this the last action
-    10  089d d001               	bne outputaction        ; no - update vera
-    11  089f 60                 	rts
+     8  086b b158               	lda (ach),y
+     9  086d c9ff               	cmp #255 		; is this the last action
+    10  086f d001               	bne outputaction        ; no - update vera
+    11  0871 60                 	rts
     12                          
     13                          outputaction:
-    14  08a0 8529               	sta Character
-    15  08a2 c8                 	iny			; is there a better way than iny/beq four times 
-    16  08a3 f014               	beq pageinc1		; to check for the end of the actions list?
+    14  0872 8529               	sta Character
+    15  0874 c8                 	iny			; is there a better way than iny/beq four times 
+    16  0875 f014               	beq pageinc1		; to check for the end of the actions list?
     17                          ret1:
-    18  08a5 b12c               	lda (ach),y
-    19  08a7 8527               	sta CursorX
-    20  08a9 c8                 	iny
-    21  08aa f015               	beq pageinc2
+    18  0877 b158               	lda (ach),y
+    19  0879 8527               	sta CursorX
+    20  087b c8                 	iny
+    21  087c f012               	beq pageinc2
     22                          ret2:
-    23  08ac b12c               	lda (ach),y
-    24  08ae 8528               	sta CursorY
-    25  08b0 c8                 	iny
-    26  08b1 f016               	beq pageinc3
+    23  087e b158               	lda (ach),y
+    24  0880 8528               	sta CursorY
+    25  0882 c8                 	iny
+    26  0883 f010               	beq pageinc3
     27                          ret3:
-    28  08b3 204c09             	jsr veraprint
-    29  08b6 4c9908             	jmp readloop
+    28  0885 205c09             	jsr veraprint
+    29  0888 4c6b08             	jmp readloop
     30                          pageinc1:
-    31  08b9 a52d               	lda ach+1
-    32  08bb 1a                 	inc 
-    33  08bc 852d               	sta ach+1
-    34  08be 4ca508             	jmp ret1
-    35                          pageinc2:
-    36  08c1 a52d               	lda ach+1
-    37  08c3 1a                 	inc 
-    38  08c4 852d               	sta ach+1
-    39  08c6 4cac08             	jmp ret2
-    40                          pageinc3:
-    41  08c9 a52d               	lda ach+1
-    42  08cb 1a                 	inc 
-    43  08cc 852d               	sta ach+1
-    44  08ce 4cb308             	jmp ret3
+    31  088b e659               	inc ach+1
+    32  088d 4c7708             	jmp ret1
+    33                          pageinc2:
+    34  0890 e659               	inc ach+1
+    35  0892 4c7e08             	jmp ret2
+    36                          pageinc3:
+    37  0895 e659               	inc ach+1
+    38  0897 4c8508             	jmp ret3
 
 ; ******** Source: gol1.asm
-   111                          
+    92                          	; read and implement the action list
+    93                          
 
 ; ******** Source: makelist.inc
-     1                          
-     2                          initlist:
-     3  08d1 48                 	pha
-     4  08d2 5a                 	phy
-     5  08d3 a9a5               	lda #<.actions		; address the action list
-     6  08d5 8536               	sta mkll
-     7  08d7 a909               	lda #>.actions
-     8  08d9 8537               	sta mklh 
-     9  08db a000               	ldy #0
-    10  08dd 8438               	sty mkly		; store zero in mkly so list addition begins at the start
-    11  08df a9ff               	lda #255		; store end of list FF in three bytes
-    12  08e1 9136               	sta (mkll),y
-    13  08e3 c8                 	iny
-    14  08e4 9136               	sta (mkll),y
-    15  08e6 c8                 	iny
-    16  08e7 9136               	sta (mkll),y
-    17  08e9 7a                 	ply
-    18  08ea 68                 	pla
-    19  08eb 60                 	rts
-    20                          
-    21                          storeaction:
-    22  08ec 48                 	pha
-    23  08ed 5a                 	phy
-    24  08ee da                 	phx
-    25  08ef a438               	ldy mkly		; pick up list index
-    26  08f1 a53b               	lda sc			; character to store
-    27  08f3 9136               	sta (mkll),y
-    28  08f5 c8                 	iny
-    29  08f6 c900               	cmp #0 			; rolled over?
-    30  08f8 f018               	beq storeinc1	        ; yes! inc the high addr
-    31                          storecharx:
-    32  08fa a539               	lda sx			; x position to set char
-    33  08fc 9136               	sta (mkll),y
-    34  08fe c8                 	iny
-    35  08ff c900               	cmp #0 			; rolled over?           
-    36  0901 f017               	beq storeinc2	        ; yes! inc the high addr
+     1                          ;
+     2                          ; initialise the orders list and allow a new order to be appended to the list
+     3                          ;
+     4                          initlist:
+     5  089a 48                 	pha
+     6  089b 5a                 	phy
+     7  089c a9c4               	lda #<.actions		; address the action list
+     8  089e 8560               	sta mkll
+     9  08a0 a909               	lda #>.actions
+    10  08a2 8561               	sta mklh 
+    11  08a4 a000               	ldy #0
+    12  08a6 8462               	sty mkly		; store zero in mkly so list addition begins at the start
+    13  08a8 a9ff               	lda #255		; store end of list FF in three bytes
+    14  08aa 9160               	sta (mkll),y
+    15  08ac c8                 	iny
+    16  08ad 9160               	sta (mkll),y
+    17  08af c8                 	iny
+    18  08b0 9160               	sta (mkll),y
+    19  08b2 7a                 	ply
+    20  08b3 68                 	pla
+    21  08b4 60                 	rts
+    22                          
+    23                          storeaction:
+    24  08b5 48                 	pha
+    25  08b6 5a                 	phy
+    26  08b7 da                 	phx
+    27  08b8 a462               	ldy mkly		; pick up list index
+    28  08ba a53b               	lda sc			; character to store
+    29  08bc 9160               	sta (mkll),y
+    30  08be c8                 	iny			; rolled over?
+    31  08bf f014               	beq storeinc1	        ; yes! inc the high addr
+    32                          storecharx:
+    33  08c1 a539               	lda sx			; x position to set char
+    34  08c3 9160               	sta (mkll),y
+    35  08c5 c8                 	iny			; rolled over?
+    36  08c6 f012               	beq storeinc2	        ; yes! inc the high addr
     37                          storechary:
-    38  0903 a53a               	lda sy
-    39  0905 9136               	sta (mkll),y
-    40  0907 c8                 	iny
-    41  0908 c900               	cmp #0			; rolled over?
-    42  090a f016               	beq storeinc3		; yes! inc the high addr
-    43                          storechardone:
-    44  090c 8438               	sty mkly		; store away the index for the next addition
-    45  090e fa                 	plx
-    46  090f 7a                 	ply
-    47  0910 68                 	pla
-    48  0911 60                 	rts			
-    49                          storeinc1:
-    50  0912 a537               	lda mklh
-    51  0914 1a                 	inc 
-    52  0915 8537               	sta mklh
-    53  0917 4cfa08             	jmp storecharx
-    54                          storeinc2:
-    55  091a a537               	lda mklh
-    56  091c 1a                 	inc 
-    57  091d 8537               	sta mklh
-    58  091f 4c0309             	jmp storechary
-    59                          storeinc3:
-    60  0922 a537               	lda mklh
-    61  0924 1a                 	inc 
-    62  0925 8537               	sta mklh
-    63  0927 4c0c09             	jmp storechardone
+    38  08c8 a53a               	lda sy
+    39  08ca 9160               	sta (mkll),y
+    40  08cc c8                 	iny			; rolled over?
+    41  08cd f010               	beq storeinc3		; yes! inc the high addr
+    42                          storechardone:
+    43  08cf 8462               	sty mkly		; store away the index for the next addition
+    44  08d1 fa                 	plx
+    45  08d2 7a                 	ply
+    46  08d3 68                 	pla
+    47  08d4 60                 	rts			
+    48                          storeinc1:
+    49  08d5 e661               	inc mklh
+    50  08d7 4cc108             	jmp storecharx
+    51                          storeinc2:
+    52  08da e661               	inc mklh
+    53  08dc 4cc808             	jmp storechary
+    54                          storeinc3:
+    55  08df e661               	inc mklh
+    56  08e1 4ccf08             	jmp storechardone
 
 ; ******** Source: gol1.asm
-   112                          	; removing this src, even though its labels are never called
-   113                          				; will make it work gagin
-   114                          	
-   115                          
-   116                          fullscreen:
-   117  092a a94f               	lda #79
-   118  092c 8527               	sta CursorX
-   119  092e a93b               	lda #59
-   120  0930 8528               	sta CursorY
-   121                          goleft:
-   122  0932 203d09             	jsr column
-   123  0935 c627               	dec CursorX
-   124  0937 d0f9               	bne goleft
-   125  0939 203d09             	jsr column
-   126  093c 60                 	rts		; Return to caller
-   127                          
-   128                          column:
-   129  093d 204c09             	jsr veraprint
-   130  0940 c628               	dec CursorY
-   131  0942 d0f9               	bne column
-   132  0944 204c09             	jsr veraprint
-   133  0947 a93b               	lda #59
-   134  0949 8528               	sta CursorY
-   135  094b 60                 	rts
-   136                          	
-   137                          
-   138                          veraprint:
-   139  094c 48                 	pha
-   140  094d 5a                 	phy
-   141  094e da                 	phx
-   142                          	; set the memory addr
-   143  094f 206a09             	jsr sexy
-   144                          	; send the char to VERA at x y
-   145  0952 a429               	ldy Character
-   146  0954 8c239f             	sty veradat
-   147  0957 a42a               	ldy Colour
-   148  0959 8c239f             	sty veradat
-   149  095c fa                 	plx
-   150  095d 7a                 	ply
-   151  095e 68                 	pla
-   152  095f 60                 	rts
-   153                          
-   154                          SetVeraADDR:             
-   155                                                  
-   156                          		; A contains vera Hi addr,
-   157                          		; Y contains vera mid
-   158                          		; X contains vera lo
-   159                          
-   160                          		; -- comment - could I use X and Y regs directly
-   161                          		; -- instead of my Zero page surrogates? Hmm
-   162                          
-   163  0960 8d229f                             sta verahi
-   164  0963 8c219f                             sty veramid
-   165  0966 8e209f                             stx veralo
-   166  0969 60                 		rts
-   167                          
-   168                          sexy:
-   169  096a a527               		lda CursorX
-   170  096c 0a                 		asl  ; mul 2
-   171  096d aa                 		tax ; put lo byte into x
-   172  096e a900               		lda #0
-   173  0970 2a                 		rol  ; get 9th bit
-   174  0971 6528               		adc CursorY ; add Y*256 effectivly
-   175  0973 a8                 		tay ; put mi byte into y
-   176  0974 a910               		lda #$10 ; set incremement
-   177  0976 206009             		jsr SetVeraADDR
-   178  0979 60                 		rts
-   179                          
-   180  097a 54455354494e4720....string !pet	"testing x y coords - waiting for enter...",13,0
+    94                          	; initialise and allow adding to the action list
+    95                          	
+
+; ******** Source: algo.inc
+     1                          
+     2                          queryscreen:
+     3  08e4 a94f               	lda #79
+     4  08e6 8527               	sta CursorX
+     5  08e8 a93b               	lda #59
+     6  08ea 8528               	sta CursorY
+     7                          queryleft:
+     8  08ec 200209             	jsr querycolumn
+     9  08ef c627               	dec CursorX
+    10  08f1 d0f9               	bne queryleft
+    11  08f3 200209             	jsr querycolumn
+    12  08f6 a9ff               	lda #255	; terminate the list
+    13  08f8 8539               	sta sx
+    14  08fa 853a               	sta sy
+    15  08fc 853b               	sta sc
+    16  08fe 20b508             	jsr storeaction
+    17  0901 60                 	rts		; Return to caller
+    18                          
+    19                          querycolumn:
+    20  0902 207009             	jsr veraquery
+    21  0905 201709             	jsr invert
+    22  0908 c628               	dec CursorY
+    23  090a d0f6               	bne querycolumn
+    24  090c 207009             	jsr veraquery
+    25  090f 201709             	jsr invert
+    26  0912 a93b               	lda #59
+    27  0914 8528               	sta CursorY
+    28  0916 60                 	rts
+    29                          	
+    30                          invert:
+    31  0917 48                 	pha
+    32  0918 5a                 	phy
+    33  0919 da                 	phx
+    34  091a a527               	lda CursorX
+    35  091c 8539               	sta sx
+    36  091e a528               	lda CursorY
+    37  0920 853a               	sta sy
+    38  0922 a53c               	lda qc
+    39  0924 c92a               	cmp #$2A 		; was it a star
+    40  0926 f007               	beq invertstar		; yep , make space
+    41  0928 a92a               	lda #$2A		; make star
+    42  092a 853b               	sta sc
+    43  092c 4c3309             	jmp invertstore
+    44                          invertstar:
+    45  092f a920               	lda #32			; make space
+    46  0931 853b               	sta sc
+    47                          invertstore:
+    48  0933 20b508             	jsr storeaction
+    49  0936 fa                 	plx
+    50  0937 7a                 	ply
+    51  0938 68                 	pla
+    52  0939 60                 	rts
+
+; ******** Source: gol1.asm
+    96                          		; the main algorithm
+    97                          
+    98                          fullscreen:
+    99  093a a94f               	lda #79
+   100  093c 8527               	sta CursorX
+   101  093e a93b               	lda #59
+   102  0940 8528               	sta CursorY
+   103                          goleft:
+   104  0942 204d09             	jsr column
+   105  0945 c627               	dec CursorX
+   106  0947 d0f9               	bne goleft
+   107  0949 204d09             	jsr column
+   108  094c 60                 	rts		; Return to caller
+   109                          
+   110                          column:
+   111  094d 205c09             	jsr veraprint
+   112  0950 c628               	dec CursorY
+   113  0952 d0f9               	bne column
+   114  0954 205c09             	jsr veraprint
+   115  0957 a93b               	lda #59
+   116  0959 8528               	sta CursorY
+   117  095b 60                 	rts
+   118                          	
+   119                          
+   120                          veraprint:
+   121  095c 48                 	pha
+   122  095d 5a                 	phy
+   123  095e da                 	phx
+   124                          	; set the memory addr
+   125  095f 208909             	jsr sexy
+   126                          	; send the char to VERA at x y
+   127  0962 a429               	ldy Character
+   128  0964 8c239f             	sty veradat
+   129  0967 a42a               	ldy Colour
+   130  0969 8c239f             	sty veradat
+   131  096c fa                 	plx
+   132  096d 7a                 	ply
+   133  096e 68                 	pla
+   134  096f 60                 	rts
+   135                          
+   136                          veraquery:
+   137  0970 48                 	pha
+   138  0971 5a                 	phy
+   139  0972 da                 	phx
+   140                          	; set the memory addr
+   141  0973 208909             	jsr sexy
+   142                          	; send the char to VERA at x y
+   143  0976 ad239f             	lda veradat
+   144  0979 853c               	sta qc		; store the char we got back
+   145  097b fa                 	plx
+   146  097c 7a                 	ply
+   147  097d 68                 	pla
+   148  097e 60                 	rts
+   149                          
+   150                          SetVeraADDR:             
+   151                                                  
+   152                          		; A contains vera Hi addr,
+   153                          		; Y contains vera mid
+   154                          		; X contains vera lo
+   155                          
+   156  097f 8d229f                             sta verahi
+   157  0982 8c219f                             sty veramid
+   158  0985 8e209f                             stx veralo
+   159  0988 60                 		rts
+   160                          
+   161                          sexy:
+   162  0989 a527               		lda CursorX
+   163  098b 0a                 		asl  ; mul 2
+   164  098c aa                 		tax ; put lo byte into x
+   165  098d a900               		lda #0
+   166  098f 2a                 		rol  ; get 9th bit
+   167  0990 6528               		adc CursorY ; add Y*256 effectivly
+   168  0992 a8                 		tay ; put mi byte into y
+   169  0993 a910               		lda #$10 ; set incremement
+   170  0995 207f09             		jsr SetVeraADDR
+   171  0998 60                 		rts
+   172                          
+   173  0999 54455354494e4720....string !pet	"testing x y coords - waiting for enter...",13,0
 
 ; ******** Source: grid.inc
      1                          .actions
-     2  09a5 2a0000             !byte $2A,$00,$00
-     3  09a8 2a4f00             !byte $2A,$4F,$00
-     4  09ab 2a0101             !byte $2A,$01,$01
-     5  09ae 2a4e01             !byte $2A,$4E,$01
-     6  09b1 2a0202             !byte $2A,$02,$02
-     7  09b4 2a4d02             !byte $2A,$4D,$02
-     8  09b7 2a0303             !byte $2A,$03,$03
-     9  09ba 2a4c03             !byte $2A,$4C,$03
-    10  09bd 2a0404             !byte $2A,$04,$04
-    11  09c0 2a4b04             !byte $2A,$4B,$04
-    12  09c3 2a0505             !byte $2A,$05,$05
-    13  09c6 2a4a05             !byte $2A,$4A,$05
-    14  09c9 2a0606             !byte $2A,$06,$06
-    15  09cc 2a4906             !byte $2A,$49,$06
-    16  09cf 2a0707             !byte $2A,$07,$07
-    17  09d2 2a4807             !byte $2A,$48,$07
-    18  09d5 2a0808             !byte $2A,$08,$08
-    19  09d8 2a4708             !byte $2A,$47,$08
-    20  09db 2a0909             !byte $2A,$09,$09
-    21  09de 2a4609             !byte $2A,$46,$09
-    22  09e1 2a0a0a             !byte $2A,$0A,$0A
-    23  09e4 2a450a             !byte $2A,$45,$0A
-    24  09e7 2a0b0b             !byte $2A,$0B,$0B
-    25  09ea 2a440b             !byte $2A,$44,$0B
-    26  09ed 2a0c0c             !byte $2A,$0C,$0C
-    27  09f0 2a430c             !byte $2A,$43,$0C
-    28  09f3 2a0d0d             !byte $2A,$0D,$0D
-    29  09f6 2a420d             !byte $2A,$42,$0D
-    30  09f9 2a0e0e             !byte $2A,$0E,$0E
-    31  09fc 2a410e             !byte $2A,$41,$0E
-    32  09ff 2a0f0f             !byte $2A,$0F,$0F
-    33  0a02 2a400f             !byte $2A,$40,$0F
-    34  0a05 2a1010             !byte $2A,$10,$10
-    35  0a08 2a3f10             !byte $2A,$3F,$10
-    36  0a0b 2a1111             !byte $2A,$11,$11
-    37  0a0e 2a3e11             !byte $2A,$3E,$11
-    38  0a11 2a1212             !byte $2A,$12,$12
-    39  0a14 2a3d12             !byte $2A,$3D,$12
-    40  0a17 2a1313             !byte $2A,$13,$13
-    41  0a1a 2a3c13             !byte $2A,$3C,$13
-    42  0a1d 2a1414             !byte $2A,$14,$14
-    43  0a20 2a3b14             !byte $2A,$3B,$14
-    44  0a23 2a1515             !byte $2A,$15,$15
-    45  0a26 2a3a15             !byte $2A,$3A,$15
-    46  0a29 2a1616             !byte $2A,$16,$16
-    47  0a2c 2a3916             !byte $2A,$39,$16
-    48  0a2f 2a1717             !byte $2A,$17,$17
-    49  0a32 2a3817             !byte $2A,$38,$17
-    50  0a35 2a1818             !byte $2A,$18,$18
-    51  0a38 2a3718             !byte $2A,$37,$18
-    52  0a3b 2a1919             !byte $2A,$19,$19
-    53  0a3e 2a3619             !byte $2A,$36,$19
-    54  0a41 2a1a1a             !byte $2A,$1A,$1A
-    55  0a44 2a351a             !byte $2A,$35,$1A
-    56  0a47 2a1b1b             !byte $2A,$1B,$1B
-    57  0a4a 2a341b             !byte $2A,$34,$1B
-    58  0a4d 2a1c1c             !byte $2A,$1C,$1C
-    59  0a50 2a251c             !byte $2A,$25,$1C
-    60  0a53 2a261c             !byte $2A,$26,$1C
-    61  0a56 2a271c             !byte $2A,$27,$1C
-    62  0a59 2a281c             !byte $2A,$28,$1C
-    63  0a5c 2a291c             !byte $2A,$29,$1C
-    64  0a5f 2a2a1c             !byte $2A,$2A,$1C
-    65  0a62 2a2b1c             !byte $2A,$2B,$1C
-    66  0a65 2a331c             !byte $2A,$33,$1C
-    67  0a68 2a1d1d             !byte $2A,$1D,$1D
-    68  0a6b 2a251d             !byte $2A,$25,$1D
-    69  0a6e 2a281d             !byte $2A,$28,$1D
-    70  0a71 2a2b1d             !byte $2A,$2B,$1D
-    71  0a74 2a321d             !byte $2A,$32,$1D
-    72  0a77 2a1e1e             !byte $2A,$1E,$1E
-    73  0a7a 2a1f1e             !byte $2A,$1F,$1E
-    74  0a7d 2a201e             !byte $2A,$20,$1E
-    75  0a80 2a211e             !byte $2A,$21,$1E
-    76  0a83 2a221e             !byte $2A,$22,$1E
-    77  0a86 2a231e             !byte $2A,$23,$1E
-    78  0a89 2a241e             !byte $2A,$24,$1E
-    79  0a8c 2a251e             !byte $2A,$25,$1E
-    80  0a8f 2a261e             !byte $2A,$26,$1E
-    81  0a92 2a271e             !byte $2A,$27,$1E
-    82  0a95 2a281e             !byte $2A,$28,$1E
-    83  0a98 2a291e             !byte $2A,$29,$1E
-    84  0a9b 2a2a1e             !byte $2A,$2A,$1E
-    85  0a9e 2a2b1e             !byte $2A,$2B,$1E
-    86  0aa1 2a2c1e             !byte $2A,$2C,$1E
-    87  0aa4 2a2d1e             !byte $2A,$2D,$1E
-    88  0aa7 2a2e1e             !byte $2A,$2E,$1E
-    89  0aaa 2a2f1e             !byte $2A,$2F,$1E
-    90  0aad 2a301e             !byte $2A,$30,$1E
-    91  0ab0 2a311e             !byte $2A,$31,$1E
-    92  0ab3 2a3f22             !byte $2A,$3F,$22
-    93  0ab6 2a4022             !byte $2A,$40,$22
-    94  0ab9 2a4122             !byte $2A,$41,$22
-    95  0abc 2a4222             !byte $2A,$42,$22
-    96  0abf 2a4322             !byte $2A,$43,$22
-    97  0ac2 2a4422             !byte $2A,$44,$22
-    98  0ac5 2a4522             !byte $2A,$45,$22
-    99  0ac8 2a4622             !byte $2A,$46,$22
-   100  0acb 2a4722             !byte $2A,$47,$22
-   101  0ace 2a4822             !byte $2A,$48,$22
-   102  0ad1 2a4922             !byte $2A,$49,$22
-   103  0ad4 2a4a22             !byte $2A,$4A,$22
-   104  0ad7 2a4b22             !byte $2A,$4B,$22
-   105  0ada 2a4c22             !byte $2A,$4C,$22
-   106  0add 2a4d22             !byte $2A,$4D,$22
-   107  0ae0 2a4023             !byte $2A,$40,$23
-   108  0ae3 2a4c23             !byte $2A,$4C,$23
-   109  0ae6 2a0024             !byte $2A,$00,$24
-   110  0ae9 2a4124             !byte $2A,$41,$24
-   111  0aec 2a4b24             !byte $2A,$4B,$24
-   112  0aef 2a0125             !byte $2A,$01,$25
-   113  0af2 2a4225             !byte $2A,$42,$25
-   114  0af5 2a4a25             !byte $2A,$4A,$25
-   115  0af8 2a0226             !byte $2A,$02,$26
-   116  0afb 2a2526             !byte $2A,$25,$26
-   117  0afe 2a2626             !byte $2A,$26,$26
-   118  0b01 2a2726             !byte $2A,$27,$26
-   119  0b04 2a2826             !byte $2A,$28,$26
-   120  0b07 2a2926             !byte $2A,$29,$26
-   121  0b0a 2a2a26             !byte $2A,$2A,$26
-   122  0b0d 2a4326             !byte $2A,$43,$26
-   123  0b10 2a4926             !byte $2A,$49,$26
-   124  0b13 2a0327             !byte $2A,$03,$27
-   125  0b16 2a2427             !byte $2A,$24,$27
-   126  0b19 2a2527             !byte $2A,$25,$27
-   127  0b1c 2a2627             !byte $2A,$26,$27
-   128  0b1f 2a2727             !byte $2A,$27,$27
-   129  0b22 2a2827             !byte $2A,$28,$27
-   130  0b25 2a2927             !byte $2A,$29,$27
-   131  0b28 2a2a27             !byte $2A,$2A,$27
-   132  0b2b 2a4427             !byte $2A,$44,$27
-   133  0b2e 2a4827             !byte $2A,$48,$27
-   134  0b31 2a0428             !byte $2A,$04,$28
-   135  0b34 2a1628             !byte $2A,$16,$28
-   136  0b37 2a1728             !byte $2A,$17,$28
-   137  0b3a 2a1828             !byte $2A,$18,$28
-   138  0b3d 2a1928             !byte $2A,$19,$28
-   139  0b40 2a1a28             !byte $2A,$1A,$28
-   140  0b43 2a2328             !byte $2A,$23,$28
-   141  0b46 2a2428             !byte $2A,$24,$28
-   142  0b49 2a2a28             !byte $2A,$2A,$28
-   143  0b4c 2a2b28             !byte $2A,$2B,$28
-   144  0b4f 2a2c28             !byte $2A,$2C,$28
-   145  0b52 2a2d28             !byte $2A,$2D,$28
-   146  0b55 2a2e28             !byte $2A,$2E,$28
-   147  0b58 2a2f28             !byte $2A,$2F,$28
-   148  0b5b 2a3028             !byte $2A,$30,$28
-   149  0b5e 2a4528             !byte $2A,$45,$28
-   150  0b61 2a4628             !byte $2A,$46,$28
-   151  0b64 2a4728             !byte $2A,$47,$28
-   152  0b67 2a0029             !byte $2A,$00,$29
-   153  0b6a 2a0529             !byte $2A,$05,$29
-   154  0b6d 2a1629             !byte $2A,$16,$29
-   155  0b70 2a1b29             !byte $2A,$1B,$29
-   156  0b73 2a2229             !byte $2A,$22,$29
-   157  0b76 2a2329             !byte $2A,$23,$29
-   158  0b79 2a2a29             !byte $2A,$2A,$29
-   159  0b7c 2a2b29             !byte $2A,$2B,$29
-   160  0b7f 2a2c29             !byte $2A,$2C,$29
-   161  0b82 2a2d29             !byte $2A,$2D,$29
-   162  0b85 2a2e29             !byte $2A,$2E,$29
-   163  0b88 2a2f29             !byte $2A,$2F,$29
-   164  0b8b 2a4429             !byte $2A,$44,$29
-   165  0b8e 2a4629             !byte $2A,$46,$29
-   166  0b91 2a4829             !byte $2A,$48,$29
-   167  0b94 2a012a             !byte $2A,$01,$2A
-   168  0b97 2a062a             !byte $2A,$06,$2A
-   169  0b9a 2a162a             !byte $2A,$16,$2A
-   170  0b9d 2a1c2a             !byte $2A,$1C,$2A
-   171  0ba0 2a222a             !byte $2A,$22,$2A
-   172  0ba3 2a232a             !byte $2A,$23,$2A
-   173  0ba6 2a2a2a             !byte $2A,$2A,$2A
-   174  0ba9 2a2b2a             !byte $2A,$2B,$2A
-   175  0bac 2a2c2a             !byte $2A,$2C,$2A
-   176  0baf 2a2d2a             !byte $2A,$2D,$2A
-   177  0bb2 2a2e2a             !byte $2A,$2E,$2A
-   178  0bb5 2a432a             !byte $2A,$43,$2A
-   179  0bb8 2a462a             !byte $2A,$46,$2A
-   180  0bbb 2a492a             !byte $2A,$49,$2A
-   181  0bbe 2a002b             !byte $2A,$00,$2B
-   182  0bc1 2a012b             !byte $2A,$01,$2B
-   183  0bc4 2a022b             !byte $2A,$02,$2B
-   184  0bc7 2a032b             !byte $2A,$03,$2B
-   185  0bca 2a042b             !byte $2A,$04,$2B
-   186  0bcd 2a052b             !byte $2A,$05,$2B
-   187  0bd0 2a062b             !byte $2A,$06,$2B
-   188  0bd3 2a072b             !byte $2A,$07,$2B
-   189  0bd6 2a082b             !byte $2A,$08,$2B
-   190  0bd9 2a092b             !byte $2A,$09,$2B
-   191  0bdc 2a0a2b             !byte $2A,$0A,$2B
-   192  0bdf 2a0b2b             !byte $2A,$0B,$2B
-   193  0be2 2a0c2b             !byte $2A,$0C,$2B
-   194  0be5 2a0d2b             !byte $2A,$0D,$2B
-   195  0be8 2a0e2b             !byte $2A,$0E,$2B
-   196  0beb 2a0f2b             !byte $2A,$0F,$2B
-   197  0bee 2a102b             !byte $2A,$10,$2B
-   198  0bf1 2a112b             !byte $2A,$11,$2B
-   199  0bf4 2a122b             !byte $2A,$12,$2B
-   200  0bf7 2a132b             !byte $2A,$13,$2B
-   201  0bfa 2a142b             !byte $2A,$14,$2B
-   202  0bfd 2a152b             !byte $2A,$15,$2B
-   203  0c00 2a162b             !byte $2A,$16,$2B
-   204  0c03 2a1c2b             !byte $2A,$1C,$2B
-   205  0c06 2a1d2b             !byte $2A,$1D,$2B
-   206  0c09 2a222b             !byte $2A,$22,$2B
-   207  0c0c 2a232b             !byte $2A,$23,$2B
-   208  0c0f 2a422b             !byte $2A,$42,$2B
-   209  0c12 2a432b             !byte $2A,$43,$2B
-   210  0c15 2a442b             !byte $2A,$44,$2B
-   211  0c18 2a452b             !byte $2A,$45,$2B
-   212  0c1b 2a462b             !byte $2A,$46,$2B
-   213  0c1e 2a472b             !byte $2A,$47,$2B
-   214  0c21 2a482b             !byte $2A,$48,$2B
-   215  0c24 2a492b             !byte $2A,$49,$2B
-   216  0c27 2a4a2b             !byte $2A,$4A,$2B
-   217  0c2a 2a012c             !byte $2A,$01,$2C
-   218  0c2d 2a062c             !byte $2A,$06,$2C
-   219  0c30 2a162c             !byte $2A,$16,$2C
-   220  0c33 2a1c2c             !byte $2A,$1C,$2C
-   221  0c36 2a222c             !byte $2A,$22,$2C
-   222  0c39 2a232c             !byte $2A,$23,$2C
-   223  0c3c 2a2a2c             !byte $2A,$2A,$2C
-   224  0c3f 2a2b2c             !byte $2A,$2B,$2C
-   225  0c42 2a2c2c             !byte $2A,$2C,$2C
-   226  0c45 2a2d2c             !byte $2A,$2D,$2C
-   227  0c48 2a422c             !byte $2A,$42,$2C
-   228  0c4b 2a462c             !byte $2A,$46,$2C
-   229  0c4e 2a4a2c             !byte $2A,$4A,$2C
-   230  0c51 2a002d             !byte $2A,$00,$2D
-   231  0c54 2a052d             !byte $2A,$05,$2D
-   232  0c57 2a162d             !byte $2A,$16,$2D
-   233  0c5a 2a1b2d             !byte $2A,$1B,$2D
-   234  0c5d 2a222d             !byte $2A,$22,$2D
-   235  0c60 2a232d             !byte $2A,$23,$2D
-   236  0c63 2a2a2d             !byte $2A,$2A,$2D
-   237  0c66 2a2b2d             !byte $2A,$2B,$2D
-   238  0c69 2a2c2d             !byte $2A,$2C,$2D
-   239  0c6c 2a2d2d             !byte $2A,$2D,$2D
-   240  0c6f 2a2e2d             !byte $2A,$2E,$2D
-   241  0c72 2a432d             !byte $2A,$43,$2D
-   242  0c75 2a462d             !byte $2A,$46,$2D
-   243  0c78 2a492d             !byte $2A,$49,$2D
-   244  0c7b 2a042e             !byte $2A,$04,$2E
-   245  0c7e 2a162e             !byte $2A,$16,$2E
-   246  0c81 2a172e             !byte $2A,$17,$2E
-   247  0c84 2a182e             !byte $2A,$18,$2E
-   248  0c87 2a192e             !byte $2A,$19,$2E
-   249  0c8a 2a1a2e             !byte $2A,$1A,$2E
-   250  0c8d 2a232e             !byte $2A,$23,$2E
-   251  0c90 2a242e             !byte $2A,$24,$2E
-   252  0c93 2a2a2e             !byte $2A,$2A,$2E
-   253  0c96 2a2b2e             !byte $2A,$2B,$2E
-   254  0c99 2a2c2e             !byte $2A,$2C,$2E
-   255  0c9c 2a2d2e             !byte $2A,$2D,$2E
-   256  0c9f 2a2e2e             !byte $2A,$2E,$2E
-   257  0ca2 2a2f2e             !byte $2A,$2F,$2E
-   258  0ca5 2a442e             !byte $2A,$44,$2E
-   259  0ca8 2a462e             !byte $2A,$46,$2E
-   260  0cab 2a482e             !byte $2A,$48,$2E
-   261  0cae 2a032f             !byte $2A,$03,$2F
-   262  0cb1 2a242f             !byte $2A,$24,$2F
-   263  0cb4 2a252f             !byte $2A,$25,$2F
-   264  0cb7 2a262f             !byte $2A,$26,$2F
-   265  0cba 2a272f             !byte $2A,$27,$2F
-   266  0cbd 2a282f             !byte $2A,$28,$2F
-   267  0cc0 2a292f             !byte $2A,$29,$2F
-   268  0cc3 2a2a2f             !byte $2A,$2A,$2F
-   269  0cc6 2a452f             !byte $2A,$45,$2F
-   270  0cc9 2a462f             !byte $2A,$46,$2F
-   271  0ccc 2a472f             !byte $2A,$47,$2F
-   272  0ccf 2a0230             !byte $2A,$02,$30
-   273  0cd2 2a2430             !byte $2A,$24,$30
-   274  0cd5 2a2530             !byte $2A,$25,$30
-   275  0cd8 2a2630             !byte $2A,$26,$30
-   276  0cdb 2a2730             !byte $2A,$27,$30
-   277  0cde 2a2830             !byte $2A,$28,$30
-   278  0ce1 2a2930             !byte $2A,$29,$30
-   279  0ce4 2a2a30             !byte $2A,$2A,$30
-   280  0ce7 2a0131             !byte $2A,$01,$31
-   281  0cea 2a0032             !byte $2A,$00,$32
-   282  0ced 2a0932             !byte $2A,$09,$32
-   283  0cf0 2a4632             !byte $2A,$46,$32
-   284  0cf3 2a0833             !byte $2A,$08,$33
-   285  0cf6 2a4733             !byte $2A,$47,$33
-   286  0cf9 2a0734             !byte $2A,$07,$34
-   287  0cfc 2a4834             !byte $2A,$48,$34
-   288  0cff 2a0635             !byte $2A,$06,$35
-   289  0d02 2a4935             !byte $2A,$49,$35
-   290  0d05 2a0536             !byte $2A,$05,$36
-   291  0d08 2a4a36             !byte $2A,$4A,$36
-   292  0d0b 2a0437             !byte $2A,$04,$37
-   293  0d0e 2a4b37             !byte $2A,$4B,$37
-   294  0d11 2a0338             !byte $2A,$03,$38
-   295  0d14 2a4c38             !byte $2A,$4C,$38
-   296  0d17 2a0239             !byte $2A,$02,$39
-   297  0d1a 2a4d39             !byte $2A,$4D,$39
-   298  0d1d 2a013a             !byte $2A,$01,$3A
-   299  0d20 2a4e3a             !byte $2A,$4E,$3A
-   300  0d23 2a003b             !byte $2A,$00,$3B
-   301  0d26 2a4f3b             !byte $2A,$4F,$3B
-   302  0d29 ffffff             !byte $FF,$FF,$FF
+     2  09c4 2a0000             !byte $2A,$00,$00
+     3  09c7 2a4f00             !byte $2A,$4F,$00
+     4  09ca 2a0101             !byte $2A,$01,$01
+     5  09cd 2a4e01             !byte $2A,$4E,$01
+     6  09d0 2a0202             !byte $2A,$02,$02
+     7  09d3 2a4d02             !byte $2A,$4D,$02
+     8  09d6 2a0303             !byte $2A,$03,$03
+     9  09d9 2a4c03             !byte $2A,$4C,$03
+    10  09dc 2a0404             !byte $2A,$04,$04
+    11  09df 2a4b04             !byte $2A,$4B,$04
+    12  09e2 2a0505             !byte $2A,$05,$05
+    13  09e5 2a4a05             !byte $2A,$4A,$05
+    14  09e8 2a0606             !byte $2A,$06,$06
+    15  09eb 2a4906             !byte $2A,$49,$06
+    16  09ee 2a0707             !byte $2A,$07,$07
+    17  09f1 2a4807             !byte $2A,$48,$07
+    18  09f4 2a0808             !byte $2A,$08,$08
+    19  09f7 2a4708             !byte $2A,$47,$08
+    20  09fa 2a0909             !byte $2A,$09,$09
+    21  09fd 2a4609             !byte $2A,$46,$09
+    22  0a00 2a0a0a             !byte $2A,$0A,$0A
+    23  0a03 2a450a             !byte $2A,$45,$0A
+    24  0a06 2a0b0b             !byte $2A,$0B,$0B
+    25  0a09 2a440b             !byte $2A,$44,$0B
+    26  0a0c 2a0c0c             !byte $2A,$0C,$0C
+    27  0a0f 2a430c             !byte $2A,$43,$0C
+    28  0a12 2a0d0d             !byte $2A,$0D,$0D
+    29  0a15 2a420d             !byte $2A,$42,$0D
+    30  0a18 2a0e0e             !byte $2A,$0E,$0E
+    31  0a1b 2a410e             !byte $2A,$41,$0E
+    32  0a1e 2a0f0f             !byte $2A,$0F,$0F
+    33  0a21 2a400f             !byte $2A,$40,$0F
+    34  0a24 2a1010             !byte $2A,$10,$10
+    35  0a27 2a3f10             !byte $2A,$3F,$10
+    36  0a2a 2a1111             !byte $2A,$11,$11
+    37  0a2d 2a3e11             !byte $2A,$3E,$11
+    38  0a30 2a1212             !byte $2A,$12,$12
+    39  0a33 2a3d12             !byte $2A,$3D,$12
+    40  0a36 2a1313             !byte $2A,$13,$13
+    41  0a39 2a3c13             !byte $2A,$3C,$13
+    42  0a3c 2a1414             !byte $2A,$14,$14
+    43  0a3f 2a3b14             !byte $2A,$3B,$14
+    44  0a42 2a1515             !byte $2A,$15,$15
+    45  0a45 2a3a15             !byte $2A,$3A,$15
+    46  0a48 2a1616             !byte $2A,$16,$16
+    47  0a4b 2a3916             !byte $2A,$39,$16
+    48  0a4e 2a1717             !byte $2A,$17,$17
+    49  0a51 2a3817             !byte $2A,$38,$17
+    50  0a54 2a1818             !byte $2A,$18,$18
+    51  0a57 2a3718             !byte $2A,$37,$18
+    52  0a5a 2a1919             !byte $2A,$19,$19
+    53  0a5d 2a3619             !byte $2A,$36,$19
+    54  0a60 2a1a1a             !byte $2A,$1A,$1A
+    55  0a63 2a351a             !byte $2A,$35,$1A
+    56  0a66 2a1b1b             !byte $2A,$1B,$1B
+    57  0a69 2a341b             !byte $2A,$34,$1B
+    58  0a6c 2a1c1c             !byte $2A,$1C,$1C
+    59  0a6f 2a251c             !byte $2A,$25,$1C
+    60  0a72 2a261c             !byte $2A,$26,$1C
+    61  0a75 2a271c             !byte $2A,$27,$1C
+    62  0a78 2a281c             !byte $2A,$28,$1C
+    63  0a7b 2a291c             !byte $2A,$29,$1C
+    64  0a7e 2a2a1c             !byte $2A,$2A,$1C
+    65  0a81 2a2b1c             !byte $2A,$2B,$1C
+    66  0a84 2a331c             !byte $2A,$33,$1C
+    67  0a87 2a1d1d             !byte $2A,$1D,$1D
+    68  0a8a 2a251d             !byte $2A,$25,$1D
+    69  0a8d 2a281d             !byte $2A,$28,$1D
+    70  0a90 2a2b1d             !byte $2A,$2B,$1D
+    71  0a93 2a321d             !byte $2A,$32,$1D
+    72  0a96 2a1e1e             !byte $2A,$1E,$1E
+    73  0a99 2a1f1e             !byte $2A,$1F,$1E
+    74  0a9c 2a201e             !byte $2A,$20,$1E
+    75  0a9f 2a211e             !byte $2A,$21,$1E
+    76  0aa2 2a221e             !byte $2A,$22,$1E
+    77  0aa5 2a231e             !byte $2A,$23,$1E
+    78  0aa8 2a241e             !byte $2A,$24,$1E
+    79  0aab 2a251e             !byte $2A,$25,$1E
+    80  0aae 2a261e             !byte $2A,$26,$1E
+    81  0ab1 2a271e             !byte $2A,$27,$1E
+    82  0ab4 2a281e             !byte $2A,$28,$1E
+    83  0ab7 2a291e             !byte $2A,$29,$1E
+    84  0aba 2a2a1e             !byte $2A,$2A,$1E
+    85  0abd 2a2b1e             !byte $2A,$2B,$1E
+    86  0ac0 2a2c1e             !byte $2A,$2C,$1E
+    87  0ac3 2a2d1e             !byte $2A,$2D,$1E
+    88  0ac6 2a2e1e             !byte $2A,$2E,$1E
+    89  0ac9 2a2f1e             !byte $2A,$2F,$1E
+    90  0acc 2a301e             !byte $2A,$30,$1E
+    91  0acf 2a311e             !byte $2A,$31,$1E
+    92  0ad2 2a3f22             !byte $2A,$3F,$22
+    93  0ad5 2a4022             !byte $2A,$40,$22
+    94  0ad8 2a4122             !byte $2A,$41,$22
+    95  0adb 2a4222             !byte $2A,$42,$22
+    96  0ade 2a4322             !byte $2A,$43,$22
+    97  0ae1 2a4422             !byte $2A,$44,$22
+    98  0ae4 2a4522             !byte $2A,$45,$22
+    99  0ae7 2a4622             !byte $2A,$46,$22
+   100  0aea 2a4722             !byte $2A,$47,$22
+   101  0aed 2a4822             !byte $2A,$48,$22
+   102  0af0 2a4922             !byte $2A,$49,$22
+   103  0af3 2a4a22             !byte $2A,$4A,$22
+   104  0af6 2a4b22             !byte $2A,$4B,$22
+   105  0af9 2a4c22             !byte $2A,$4C,$22
+   106  0afc 2a4d22             !byte $2A,$4D,$22
+   107  0aff 2a4023             !byte $2A,$40,$23
+   108  0b02 2a4c23             !byte $2A,$4C,$23
+   109  0b05 2a0024             !byte $2A,$00,$24
+   110  0b08 2a4124             !byte $2A,$41,$24
+   111  0b0b 2a4b24             !byte $2A,$4B,$24
+   112  0b0e 2a0125             !byte $2A,$01,$25
+   113  0b11 2a4225             !byte $2A,$42,$25
+   114  0b14 2a4a25             !byte $2A,$4A,$25
+   115  0b17 2a0226             !byte $2A,$02,$26
+   116  0b1a 2a2526             !byte $2A,$25,$26
+   117  0b1d 2a2626             !byte $2A,$26,$26
+   118  0b20 2a2726             !byte $2A,$27,$26
+   119  0b23 2a2826             !byte $2A,$28,$26
+   120  0b26 2a2926             !byte $2A,$29,$26
+   121  0b29 2a2a26             !byte $2A,$2A,$26
+   122  0b2c 2a4326             !byte $2A,$43,$26
+   123  0b2f 2a4926             !byte $2A,$49,$26
+   124  0b32 2a0327             !byte $2A,$03,$27
+   125  0b35 2a2427             !byte $2A,$24,$27
+   126  0b38 2a2527             !byte $2A,$25,$27
+   127  0b3b 2a2627             !byte $2A,$26,$27
+   128  0b3e 2a2727             !byte $2A,$27,$27
+   129  0b41 2a2827             !byte $2A,$28,$27
+   130  0b44 2a2927             !byte $2A,$29,$27
+   131  0b47 2a2a27             !byte $2A,$2A,$27
+   132  0b4a 2a4427             !byte $2A,$44,$27
+   133  0b4d 2a4827             !byte $2A,$48,$27
+   134  0b50 2a0428             !byte $2A,$04,$28
+   135  0b53 2a1628             !byte $2A,$16,$28
+   136  0b56 2a1728             !byte $2A,$17,$28
+   137  0b59 2a1828             !byte $2A,$18,$28
+   138  0b5c 2a1928             !byte $2A,$19,$28
+   139  0b5f 2a1a28             !byte $2A,$1A,$28
+   140  0b62 2a2328             !byte $2A,$23,$28
+   141  0b65 2a2428             !byte $2A,$24,$28
+   142  0b68 2a2a28             !byte $2A,$2A,$28
+   143  0b6b 2a2b28             !byte $2A,$2B,$28
+   144  0b6e 2a2c28             !byte $2A,$2C,$28
+   145  0b71 2a2d28             !byte $2A,$2D,$28
+   146  0b74 2a2e28             !byte $2A,$2E,$28
+   147  0b77 2a2f28             !byte $2A,$2F,$28
+   148  0b7a 2a3028             !byte $2A,$30,$28
+   149  0b7d 2a4528             !byte $2A,$45,$28
+   150  0b80 2a4628             !byte $2A,$46,$28
+   151  0b83 2a4728             !byte $2A,$47,$28
+   152  0b86 2a0029             !byte $2A,$00,$29
+   153  0b89 2a0529             !byte $2A,$05,$29
+   154  0b8c 2a1629             !byte $2A,$16,$29
+   155  0b8f 2a1b29             !byte $2A,$1B,$29
+   156  0b92 2a2229             !byte $2A,$22,$29
+   157  0b95 2a2329             !byte $2A,$23,$29
+   158  0b98 2a2a29             !byte $2A,$2A,$29
+   159  0b9b 2a2b29             !byte $2A,$2B,$29
+   160  0b9e 2a2c29             !byte $2A,$2C,$29
+   161  0ba1 2a2d29             !byte $2A,$2D,$29
+   162  0ba4 2a2e29             !byte $2A,$2E,$29
+   163  0ba7 2a2f29             !byte $2A,$2F,$29
+   164  0baa 2a4429             !byte $2A,$44,$29
+   165  0bad 2a4629             !byte $2A,$46,$29
+   166  0bb0 2a4829             !byte $2A,$48,$29
+   167  0bb3 2a012a             !byte $2A,$01,$2A
+   168  0bb6 2a062a             !byte $2A,$06,$2A
+   169  0bb9 2a162a             !byte $2A,$16,$2A
+   170  0bbc 2a1c2a             !byte $2A,$1C,$2A
+   171  0bbf 2a222a             !byte $2A,$22,$2A
+   172  0bc2 2a232a             !byte $2A,$23,$2A
+   173  0bc5 2a2a2a             !byte $2A,$2A,$2A
+   174  0bc8 2a2b2a             !byte $2A,$2B,$2A
+   175  0bcb 2a2c2a             !byte $2A,$2C,$2A
+   176  0bce 2a2d2a             !byte $2A,$2D,$2A
+   177  0bd1 2a2e2a             !byte $2A,$2E,$2A
+   178  0bd4 2a432a             !byte $2A,$43,$2A
+   179  0bd7 2a462a             !byte $2A,$46,$2A
+   180  0bda 2a492a             !byte $2A,$49,$2A
+   181  0bdd 2a002b             !byte $2A,$00,$2B
+   182  0be0 2a012b             !byte $2A,$01,$2B
+   183  0be3 2a022b             !byte $2A,$02,$2B
+   184  0be6 2a032b             !byte $2A,$03,$2B
+   185  0be9 2a042b             !byte $2A,$04,$2B
+   186  0bec 2a052b             !byte $2A,$05,$2B
+   187  0bef 2a062b             !byte $2A,$06,$2B
+   188  0bf2 2a072b             !byte $2A,$07,$2B
+   189  0bf5 2a082b             !byte $2A,$08,$2B
+   190  0bf8 2a092b             !byte $2A,$09,$2B
+   191  0bfb 2a0a2b             !byte $2A,$0A,$2B
+   192  0bfe 2a0b2b             !byte $2A,$0B,$2B
+   193  0c01 2a0c2b             !byte $2A,$0C,$2B
+   194  0c04 2a0d2b             !byte $2A,$0D,$2B
+   195  0c07 2a0e2b             !byte $2A,$0E,$2B
+   196  0c0a 2a0f2b             !byte $2A,$0F,$2B
+   197  0c0d 2a102b             !byte $2A,$10,$2B
+   198  0c10 2a112b             !byte $2A,$11,$2B
+   199  0c13 2a122b             !byte $2A,$12,$2B
+   200  0c16 2a132b             !byte $2A,$13,$2B
+   201  0c19 2a142b             !byte $2A,$14,$2B
+   202  0c1c 2a152b             !byte $2A,$15,$2B
+   203  0c1f 2a162b             !byte $2A,$16,$2B
+   204  0c22 2a1c2b             !byte $2A,$1C,$2B
+   205  0c25 2a1d2b             !byte $2A,$1D,$2B
+   206  0c28 2a222b             !byte $2A,$22,$2B
+   207  0c2b 2a232b             !byte $2A,$23,$2B
+   208  0c2e 2a422b             !byte $2A,$42,$2B
+   209  0c31 2a432b             !byte $2A,$43,$2B
+   210  0c34 2a442b             !byte $2A,$44,$2B
+   211  0c37 2a452b             !byte $2A,$45,$2B
+   212  0c3a 2a462b             !byte $2A,$46,$2B
+   213  0c3d 2a472b             !byte $2A,$47,$2B
+   214  0c40 2a482b             !byte $2A,$48,$2B
+   215  0c43 2a492b             !byte $2A,$49,$2B
+   216  0c46 2a4a2b             !byte $2A,$4A,$2B
+   217  0c49 2a012c             !byte $2A,$01,$2C
+   218  0c4c 2a062c             !byte $2A,$06,$2C
+   219  0c4f 2a162c             !byte $2A,$16,$2C
+   220  0c52 2a1c2c             !byte $2A,$1C,$2C
+   221  0c55 2a222c             !byte $2A,$22,$2C
+   222  0c58 2a232c             !byte $2A,$23,$2C
+   223  0c5b 2a2a2c             !byte $2A,$2A,$2C
+   224  0c5e 2a2b2c             !byte $2A,$2B,$2C
+   225  0c61 2a2c2c             !byte $2A,$2C,$2C
+   226  0c64 2a2d2c             !byte $2A,$2D,$2C
+   227  0c67 2a422c             !byte $2A,$42,$2C
+   228  0c6a 2a462c             !byte $2A,$46,$2C
+   229  0c6d 2a4a2c             !byte $2A,$4A,$2C
+   230  0c70 2a002d             !byte $2A,$00,$2D
+   231  0c73 2a052d             !byte $2A,$05,$2D
+   232  0c76 2a162d             !byte $2A,$16,$2D
+   233  0c79 2a1b2d             !byte $2A,$1B,$2D
+   234  0c7c 2a222d             !byte $2A,$22,$2D
+   235  0c7f 2a232d             !byte $2A,$23,$2D
+   236  0c82 2a2a2d             !byte $2A,$2A,$2D
+   237  0c85 2a2b2d             !byte $2A,$2B,$2D
+   238  0c88 2a2c2d             !byte $2A,$2C,$2D
+   239  0c8b 2a2d2d             !byte $2A,$2D,$2D
+   240  0c8e 2a2e2d             !byte $2A,$2E,$2D
+   241  0c91 2a432d             !byte $2A,$43,$2D
+   242  0c94 2a462d             !byte $2A,$46,$2D
+   243  0c97 2a492d             !byte $2A,$49,$2D
+   244  0c9a 2a042e             !byte $2A,$04,$2E
+   245  0c9d 2a162e             !byte $2A,$16,$2E
+   246  0ca0 2a172e             !byte $2A,$17,$2E
+   247  0ca3 2a182e             !byte $2A,$18,$2E
+   248  0ca6 2a192e             !byte $2A,$19,$2E
+   249  0ca9 2a1a2e             !byte $2A,$1A,$2E
+   250  0cac 2a232e             !byte $2A,$23,$2E
+   251  0caf 2a242e             !byte $2A,$24,$2E
+   252  0cb2 2a2a2e             !byte $2A,$2A,$2E
+   253  0cb5 2a2b2e             !byte $2A,$2B,$2E
+   254  0cb8 2a2c2e             !byte $2A,$2C,$2E
+   255  0cbb 2a2d2e             !byte $2A,$2D,$2E
+   256  0cbe 2a2e2e             !byte $2A,$2E,$2E
+   257  0cc1 2a2f2e             !byte $2A,$2F,$2E
+   258  0cc4 2a442e             !byte $2A,$44,$2E
+   259  0cc7 2a462e             !byte $2A,$46,$2E
+   260  0cca 2a482e             !byte $2A,$48,$2E
+   261  0ccd 2a032f             !byte $2A,$03,$2F
+   262  0cd0 2a242f             !byte $2A,$24,$2F
+   263  0cd3 2a252f             !byte $2A,$25,$2F
+   264  0cd6 2a262f             !byte $2A,$26,$2F
+   265  0cd9 2a272f             !byte $2A,$27,$2F
+   266  0cdc 2a282f             !byte $2A,$28,$2F
+   267  0cdf 2a292f             !byte $2A,$29,$2F
+   268  0ce2 2a2a2f             !byte $2A,$2A,$2F
+   269  0ce5 2a452f             !byte $2A,$45,$2F
+   270  0ce8 2a462f             !byte $2A,$46,$2F
+   271  0ceb 2a472f             !byte $2A,$47,$2F
+   272  0cee 2a0230             !byte $2A,$02,$30
+   273  0cf1 2a2430             !byte $2A,$24,$30
+   274  0cf4 2a2530             !byte $2A,$25,$30
+   275  0cf7 2a2630             !byte $2A,$26,$30
+   276  0cfa 2a2730             !byte $2A,$27,$30
+   277  0cfd 2a2830             !byte $2A,$28,$30
+   278  0d00 2a2930             !byte $2A,$29,$30
+   279  0d03 2a2a30             !byte $2A,$2A,$30
+   280  0d06 2a0131             !byte $2A,$01,$31
+   281  0d09 2a0032             !byte $2A,$00,$32
+   282  0d0c 2a0932             !byte $2A,$09,$32
+   283  0d0f 2a4632             !byte $2A,$46,$32
+   284  0d12 2a0833             !byte $2A,$08,$33
+   285  0d15 2a4733             !byte $2A,$47,$33
+   286  0d18 2a0734             !byte $2A,$07,$34
+   287  0d1b 2a4834             !byte $2A,$48,$34
+   288  0d1e 2a0635             !byte $2A,$06,$35
+   289  0d21 2a4935             !byte $2A,$49,$35
+   290  0d24 2a0536             !byte $2A,$05,$36
+   291  0d27 2a4a36             !byte $2A,$4A,$36
+   292  0d2a 2a0437             !byte $2A,$04,$37
+   293  0d2d 2a4b37             !byte $2A,$4B,$37
+   294  0d30 2a0338             !byte $2A,$03,$38
+   295  0d33 2a4c38             !byte $2A,$4C,$38
+   296  0d36 2a0239             !byte $2A,$02,$39
+   297  0d39 2a4d39             !byte $2A,$4D,$39
+   298  0d3c 2a013a             !byte $2A,$01,$3A
+   299  0d3f 2a4e3a             !byte $2A,$4E,$3A
+   300  0d42 2a003b             !byte $2A,$00,$3B
+   301  0d45 2a4f3b             !byte $2A,$4F,$3B
+   302  0d48 ffffff             !byte $FF,$FF,$FF
 
 ; ******** Source: gol1.asm
-   182                          
+   175                          
