@@ -37,6 +37,10 @@
     35                          qc = zr+28		; vera character query result
     36                          kc = zr+29		; original cell value          
     37                          
+    38                          hml = zr+30		; hma grid low
+    39                          hmh = zr+31		; hma grid high
+    40                          scratchpad = zr+32	; scratchpad
+    41                          
 
 ; ******** Source: vera.inc
      1                          ; License: Public Domain
@@ -127,517 +131,611 @@
     86                          }
 
 ; ******** Source: gol1.asm
-    39                          *=$0801			; Assembled code should start at $0801
-    40                          			; (where BASIC programs start)
-    41                          			; The real program starts at $0810 = 2064
-    42  0801 0c08               !byte $0C,$08		; $080C - pointer to next line of BASIC code
-    43  0803 0a00               !byte $0A,$00		; 2-byte line number ($000A = 10)
-    44  0805 9e                 !byte $9E		; SYS BASIC token
-    45  0806 20                 !byte $20		; [space]
-    46  0807 32303634           !byte $32,$30,$36,$34	; $32="2",$30="0",$36="6",$34="4"
-    47                          			; (ASCII encoded nums for dec starting addr)
-    48  080b 00                 !byte $00		; End of Line
-    49  080c 0000               !byte $00,$00		; This is address $080C containing
-    50                          			; 2-byte pointer to next line of BASIC code
-    51                          			; ($0000 = end of program)
-    52                          *=$0810			; Here starts the real program
-    53  0810 a9008d259f8d219f...+video_init
-    54  0827 a9108d229fa9008d...+vset $00000 | AUTO_INC_1 ; VRAM bank 0
-    55                          
-    56                          CHROUT=$FFD2		; CHROUT outputs a character (C64 Kernal API)
-    57                          CHRIN=$FFCF		; CHRIN read from default input
-    58                          CURRENT=$0
+    43                          *=$0801			; Assembled code should start at $0801
+    44                          			; (where BASIC programs start)
+    45                          			; The real program starts at $0810 = 2064
+    46  0801 0c08               !byte $0C,$08		; $080C - pointer to next line of BASIC code
+    47  0803 0a00               !byte $0A,$00		; 2-byte line number ($000A = 10)
+    48  0805 9e                 !byte $9E		; SYS BASIC token
+    49  0806 20                 !byte $20		; [space]
+    50  0807 32303634           !byte $32,$30,$36,$34	; $32="2",$30="0",$36="6",$34="4"
+    51                          			; (ASCII encoded nums for dec starting addr)
+    52  080b 00                 !byte $00		; End of Line
+    53  080c 0000               !byte $00,$00		; This is address $080C containing
+    54                          			; 2-byte pointer to next line of BASIC code
+    55                          			; ($0000 = end of program)
+    56                          *=$0810			; Here starts the real program
+    57  0810 a9008d259f8d219f...+video_init
+    58  0827 a9108d229fa9008d...+vset $00000 | AUTO_INC_1 ; VRAM bank 0
     59                          
-    60                          start:
-    61  0836 a920               	lda #32 	; space
-    62  0838 8529               	sta Character
-    63  083a a903               	lda #3		; light blue
-    64  083c 852a               	sta Colour
-    65  083e 20330a             	jsr fullscreen
-    66                          
-    67  0841 a92a               	lda #$2A	; star
-    68  0843 8529               	sta Character
-    69                          
-    70  0845 a902               	lda #2 		; red
-    71  0847 a907               	lda #7 		; yellow
-    72  0849 852a               	sta Colour
+    60                          CHROUT=$FFD2		; CHROUT outputs a character (C64 Kernal API)
+    61                          CHRIN=$FFCF		; CHRIN read from default input
+    62                          CURRENT=$0
+    63                          
+    64                          start:
+    65  0836 a920               	lda #32 	; space
+    66  0838 8529               	sta Character
+    67  083a a903               	lda #3		; light blue
+    68  083c 852a               	sta Colour
+    69  083e 208a0a             	jsr fullscreen
+    70                          
+    71  0841 a92a               	lda #$2A	; star
+    72  0843 8529               	sta Character
     73                          
-    74                          	; 37 , 30
-    75                          
-    76  084b 206108             	jsr readlist
+    74  0845 a902               	lda #2 		; red
+    75  0847 a907               	lda #7 		; yellow
+    76  0849 852a               	sta Colour
     77                          
-    78  084e 20cfff             	jsr CHRIN
-    79  0851 20cfff             	jsr CHRIN
+    78                          	; 37 , 30
+    79                          	; 10 , 16
     80                          
-    81                          neverend:
-    82  0854 209a08             	jsr initlist
-    83  0857 20e408             	jsr queryscreen
-    84  085a 206108             	jsr readlist
-    85                          	
-    86                          
-    87  085d 4c5408             	jmp neverend
+    81  084b 206c08             	jsr readlist
+    82                          
+    83  084e a90a               	lda #10
+    84  0850 8528               	sta CursorY
+    85  0852 a910               	lda #16
+    86  0854 8527               	sta CursorX
+    87  0856 207a0a             	jsr hmget
     88                          
-    89  0860 60                 	rts
+    89                          	; jmp $FFFF
     90                          
-    91                          
-    92                          
+    91  0859 20cfff             	jsr CHRIN
+    92  085c 20cfff             	jsr CHRIN
+    93                          
+    94                          neverend:
+    95  085f 20a508             	jsr initlist
+    96  0862 20ef08             	jsr queryscreen
+    97  0865 206c08             	jsr readlist
+    98                          	
+    99                          
+   100  0868 4c5f08             	jmp neverend
+   101                          
+   102  086b 60                 	rts
+   103                          
+   104                          
+   105                          
 
 ; ******** Source: readlist.inc
      1                          readlist:
-     2  0861 a9bd               	lda #<.actions		; address the action list
-     3  0863 8558               	sta ach
-     4  0865 a20a               	ldx #>.actions
-     5  0867 8659               	stx ach+1
-     6  0869 a000               	ldy #0
+     2  086c a917               	lda #<.actions		; address the action list
+     3  086e 8558               	sta ach
+     4  0870 a20b               	ldx #>.actions
+     5  0872 8659               	stx ach+1
+     6  0874 a000               	ldy #0
      7                          readloop:
-     8  086b b158               	lda (ach),y
-     9  086d c9ff               	cmp #255 		; is this the last action
-    10  086f d001               	bne outputaction        ; no - update vera
-    11  0871 60                 	rts
+     8  0876 b158               	lda (ach),y
+     9  0878 c9ff               	cmp #255 		; is this the last action
+    10  087a d001               	bne outputaction        ; no - update vera
+    11  087c 60                 	rts
     12                          
     13                          outputaction:
-    14  0872 8529               	sta Character
-    15  0874 c8                 	iny			; is there a better way than iny/beq four times 
-    16  0875 f014               	beq pageinc1		; to check for the end of the actions list?
+    14  087d 8529               	sta Character
+    15  087f c8                 	iny			; is there a better way than iny/beq four times 
+    16  0880 f014               	beq pageinc1		; to check for the end of the actions list?
     17                          ret1:
-    18  0877 b158               	lda (ach),y
-    19  0879 8527               	sta CursorX
-    20  087b c8                 	iny
-    21  087c f012               	beq pageinc2
+    18  0882 b158               	lda (ach),y
+    19  0884 8527               	sta CursorX
+    20  0886 c8                 	iny
+    21  0887 f012               	beq pageinc2
     22                          ret2:
-    23  087e b158               	lda (ach),y
-    24  0880 8528               	sta CursorY
-    25  0882 c8                 	iny
-    26  0883 f010               	beq pageinc3
+    23  0889 b158               	lda (ach),y
+    24  088b 8528               	sta CursorY
+    25  088d c8                 	iny
+    26  088e f010               	beq pageinc3
     27                          ret3:
-    28  0885 20550a             	jsr veraprint
-    29  0888 4c6b08             	jmp readloop
+    28  0890 20ac0a             	jsr veraprint
+    29  0893 4c7608             	jmp readloop
     30                          pageinc1:
-    31  088b e659               	inc ach+1
-    32  088d 4c7708             	jmp ret1
+    31  0896 e659               	inc ach+1
+    32  0898 4c8208             	jmp ret1
     33                          pageinc2:
-    34  0890 e659               	inc ach+1
-    35  0892 4c7e08             	jmp ret2
+    34  089b e659               	inc ach+1
+    35  089d 4c8908             	jmp ret2
     36                          pageinc3:
-    37  0895 e659               	inc ach+1
-    38  0897 4c8508             	jmp ret3
+    37  08a0 e659               	inc ach+1
+    38  08a2 4c9008             	jmp ret3
 
 ; ******** Source: gol1.asm
-    93                          	; read and implement the action list
-    94                          
+   106                          	; read and implement the action list
+   107                          
 
 ; ******** Source: makelist.inc
      1                          ;
      2                          ; initialise the orders list and allow a new order to be appended to the list
      3                          ;
      4                          initlist:
-     5  089a 48                 	pha
-     6  089b 5a                 	phy
-     7  089c a9bd               	lda #<.actions		; address the action list
-     8  089e 8560               	sta mkll
-     9  08a0 a90a               	lda #>.actions
-    10  08a2 8561               	sta mklh 
-    11  08a4 a000               	ldy #0
-    12  08a6 8462               	sty mkly		; store zero in mkly so list addition begins at the start
-    13  08a8 a9ff               	lda #255		; store end of list FF in three bytes
-    14  08aa 9160               	sta (mkll),y
-    15  08ac c8                 	iny
-    16  08ad 9160               	sta (mkll),y
-    17  08af c8                 	iny
-    18  08b0 9160               	sta (mkll),y
-    19  08b2 7a                 	ply
-    20  08b3 68                 	pla
-    21  08b4 60                 	rts
+     5  08a5 48                 	pha
+     6  08a6 5a                 	phy
+     7  08a7 a917               	lda #<.actions		; address the action list
+     8  08a9 8560               	sta mkll
+     9  08ab a90b               	lda #>.actions
+    10  08ad 8561               	sta mklh 
+    11  08af a000               	ldy #0
+    12  08b1 8462               	sty mkly		; store zero in mkly so list addition begins at the start
+    13  08b3 a9ff               	lda #255		; store end of list FF in three bytes
+    14  08b5 9160               	sta (mkll),y
+    15  08b7 c8                 	iny
+    16  08b8 9160               	sta (mkll),y
+    17  08ba c8                 	iny
+    18  08bb 9160               	sta (mkll),y
+    19  08bd 7a                 	ply
+    20  08be 68                 	pla
+    21  08bf 60                 	rts
     22                          
     23                          storeaction:
-    24  08b5 48                 	pha
-    25  08b6 5a                 	phy
-    26  08b7 da                 	phx
-    27  08b8 a462               	ldy mkly		; pick up list index
-    28  08ba a53b               	lda sc			; character to store
-    29  08bc 9160               	sta (mkll),y
-    30  08be c8                 	iny			; rolled over?
-    31  08bf f014               	beq storeinc1	        ; yes! inc the high addr
+    24  08c0 48                 	pha
+    25  08c1 5a                 	phy
+    26  08c2 da                 	phx
+    27  08c3 a462               	ldy mkly		; pick up list index
+    28  08c5 a53b               	lda sc			; character to store
+    29  08c7 9160               	sta (mkll),y
+    30  08c9 c8                 	iny			; rolled over?
+    31  08ca f014               	beq storeinc1	        ; yes! inc the high addr
     32                          storecharx:
-    33  08c1 a539               	lda sx			; x position to set char
-    34  08c3 9160               	sta (mkll),y
-    35  08c5 c8                 	iny			; rolled over?
-    36  08c6 f012               	beq storeinc2	        ; yes! inc the high addr
+    33  08cc a539               	lda sx			; x position to set char
+    34  08ce 9160               	sta (mkll),y
+    35  08d0 c8                 	iny			; rolled over?
+    36  08d1 f012               	beq storeinc2	        ; yes! inc the high addr
     37                          storechary:
-    38  08c8 a53a               	lda sy
-    39  08ca 9160               	sta (mkll),y
-    40  08cc c8                 	iny			; rolled over?
-    41  08cd f010               	beq storeinc3		; yes! inc the high addr
+    38  08d3 a53a               	lda sy
+    39  08d5 9160               	sta (mkll),y
+    40  08d7 c8                 	iny			; rolled over?
+    41  08d8 f010               	beq storeinc3		; yes! inc the high addr
     42                          storechardone:
-    43  08cf 8462               	sty mkly		; store away the index for the next addition
-    44  08d1 fa                 	plx
-    45  08d2 7a                 	ply
-    46  08d3 68                 	pla
-    47  08d4 60                 	rts			
+    43  08da 8462               	sty mkly		; store away the index for the next addition
+    44  08dc fa                 	plx
+    45  08dd 7a                 	ply
+    46  08de 68                 	pla
+    47  08df 60                 	rts			
     48                          storeinc1:
-    49  08d5 e661               	inc mklh
-    50  08d7 4cc108             	jmp storecharx
+    49  08e0 e661               	inc mklh
+    50  08e2 4ccc08             	jmp storecharx
     51                          storeinc2:
-    52  08da e661               	inc mklh
-    53  08dc 4cc808             	jmp storechary
+    52  08e5 e661               	inc mklh
+    53  08e7 4cd308             	jmp storechary
     54                          storeinc3:
-    55  08df e661               	inc mklh
-    56  08e1 4ccf08             	jmp storechardone
+    55  08ea e661               	inc mklh
+    56  08ec 4cda08             	jmp storechardone
 
 ; ******** Source: gol1.asm
-    95                          	; initialise and allow adding to the action list
-    96                          	
+   108                          	; initialise and allow adding to the action list
+   109                          	
 
 ; ******** Source: algo.inc
      1                          ;
      2                          ; game of life algorithm. Shall the cell be born, survive or die 
      3                          ;
      4                          queryscreen:
-     5  08e4 a94f               	lda #79
-     6  08e6 8527               	sta CursorX
-     7  08e8 a93b               	lda #59
-     8  08ea 8528               	sta CursorY
+     5  08ef a94f               	lda #79
+     6  08f1 8527               	sta CursorX
+     7  08f3 a93b               	lda #59
+     8  08f5 8528               	sta CursorY
      9                          queryleft:
-    10  08ec 200209             	jsr querycolumn
-    11  08ef c627               	dec CursorX
-    12  08f1 d0f9               	bne queryleft
-    13  08f3 200209             	jsr querycolumn ; make sure to do the last X column (0)
-    14  08f6 a9ff               	lda #255	; terminate the list
-    15  08f8 8539               	sta sx
-    16  08fa 853a               	sta sy
-    17  08fc 853b               	sta sc
-    18  08fe 20b508             	jsr storeaction
-    19  0901 60                 	rts		; Return to caller
+    10  08f7 200d09             	jsr querycolumn
+    11  08fa c627               	dec CursorX
+    12  08fc d0f9               	bne queryleft
+    13  08fe 200d09             	jsr querycolumn ; make sure to do the last X column (0)
+    14  0901 a9ff               	lda #255	; terminate the list
+    15  0903 8539               	sta sx
+    16  0905 853a               	sta sy
+    17  0907 853b               	sta sc
+    18  0909 20c008             	jsr storeaction
+    19  090c 60                 	rts		; Return to caller
     20                          
     21                          querycolumn:
-    22  0902 20690a             	jsr veraquery
-    23  0905 201709             	jsr neighbors
-    24  0908 c628               	dec CursorY
-    25  090a d0f6               	bne querycolumn
-    26  090c 20690a             	jsr veraquery
-    27  090f 201709             	jsr neighbors	; make sure to do the final character
-    28  0912 a93b               	lda #59
-    29  0914 8528               	sta CursorY
-    30  0916 60                 	rts
-    31                          	
-    32                          neighbors:
-    33  0917 48                 	pha
-    34  0918 5a                 	phy
-    35  0919 da                 	phx
-    36  091a 6431               	stz nn		; start with zero neighbors
-    37  091c a53c               	lda qc
-    38  091e 853d               	sta kc		; keep the current cell state in kc
-    39  0920 a527               	lda CursorX	
-    40  0922 852f               	sta kx		; keep our current pos X
-    41  0924 a528               	lda CursorY
-    42  0926 8530               	sta ky		; keep our current pos Y
-    43                          
-    44  0928 c627               	dec CursorX	; start on the upper left
-    45  092a c628               	dec CursorY
-    46  092c a9ff               	lda #255
-    47  092e c527               	cmp CursorX	; did it wrap?
-    48  0930 d004               	bne nc1		; nope
-    49  0932 a94f               	lda #79		; wrap to right edge
-    50  0934 8527               	sta CursorX	
-    51                          nc1:
-    52  0936 a9ff               	lda #255
-    53  0938 c528               	cmp CursorY	; did it wrap?
-    54  093a d004               	bne nc2		; nope
-    55  093c a93b               	lda #59
-    56  093e 8528               	sta CursorY
-    57                          nc2:
-    58  0940 20690a             	jsr veraquery 	; top left
-    59  0943 202a0a             	jsr addif	
-    60  0946 e627               	inc CursorX	; top middle
-    61  0948 a950               	lda #80
-    62  094a c527               	cmp CursorX	; did it wrap?
-    63  094c d004               	bne nc3		; nope
-    64  094e a900               	lda #0
-    65  0950 8527               	sta CursorX	; wrap to left edge
-    66                          nc3:
-    67  0952 20690a             	jsr veraquery	; top middle
-    68  0955 202a0a             	jsr addif
-    69  0958 e627               	inc CursorX	; top right
-    70  095a a950               	lda #80
-    71  095c c527               	cmp CursorX	; did it wrap?
-    72  095e d004               	bne nc4		; nope
-    73  0960 a900               	lda #0
-    74  0962 8527               	sta CursorX	; wrap to left edge
-    75                          nc4:
-    76  0964 20690a             	jsr veraquery	; top right
-    77  0967 202a0a             	jsr addif
-    78                          
-    79  096a a52f               	lda kx		; reset to middle
-    80  096c 8527               	sta CursorX
-    81  096e a530               	lda ky
-    82  0970 8528               	sta CursorY
+    22                          	;jsr veraquery
+    23  090d 207a0a             	jsr hmget
+    24  0910 202209             	jsr neighbors
+    25  0913 c628               	dec CursorY
+    26  0915 d0f6               	bne querycolumn
+    27                          	;jsr veraquery
+    28  0917 207a0a             	jsr hmget
+    29  091a 202209             	jsr neighbors	; make sure to do the final character
+    30  091d a93b               	lda #59
+    31  091f 8528               	sta CursorY
+    32  0921 60                 	rts
+    33                          	
+    34                          neighbors:
+    35  0922 48                 	pha
+    36  0923 5a                 	phy
+    37  0924 da                 	phx
+    38  0925 6431               	stz nn		; start with zero neighbors
+    39  0927 a53c               	lda qc
+    40  0929 853d               	sta kc		; keep the current cell state in kc
+    41  092b a527               	lda CursorX	
+    42  092d 852f               	sta kx		; keep our current pos X
+    43  092f a528               	lda CursorY
+    44  0931 8530               	sta ky		; keep our current pos Y
+    45                          
+    46  0933 c627               	dec CursorX	; start on the upper left
+    47  0935 c628               	dec CursorY
+    48  0937 a9ff               	lda #255
+    49  0939 c527               	cmp CursorX	; did it wrap?
+    50  093b d004               	bne nc1		; nope
+    51  093d a94f               	lda #79		; wrap to right edge
+    52  093f 8527               	sta CursorX	
+    53                          nc1:
+    54  0941 a9ff               	lda #255
+    55  0943 c528               	cmp CursorY	; did it wrap?
+    56  0945 d004               	bne nc2		; nope
+    57  0947 a93b               	lda #59
+    58  0949 8528               	sta CursorY
+    59                          nc2:
+    60                          	;jsr veraquery 	; top left
+    61  094b 207a0a             	jsr hmget
+    62  094e 20350a             	jsr addif	
+    63  0951 e627               	inc CursorX	; top middle
+    64  0953 a950               	lda #80
+    65  0955 c527               	cmp CursorX	; did it wrap?
+    66  0957 d004               	bne nc3		; nope
+    67  0959 a900               	lda #0
+    68  095b 8527               	sta CursorX	; wrap to left edge
+    69                          nc3:
+    70                          	;jsr veraquery	; top middle
+    71  095d 207a0a             	jsr hmget
+    72  0960 20350a             	jsr addif
+    73  0963 e627               	inc CursorX	; top right
+    74  0965 a950               	lda #80
+    75  0967 c527               	cmp CursorX	; did it wrap?
+    76  0969 d004               	bne nc4		; nope
+    77  096b a900               	lda #0
+    78  096d 8527               	sta CursorX	; wrap to left edge
+    79                          nc4:
+    80                          	;jsr veraquery	; top right
+    81  096f 207a0a             	jsr hmget
+    82  0972 20350a             	jsr addif
     83                          
-    84  0972 c627               	dec CursorX	; middle left
-    85  0974 a9ff               	lda #255
-    86  0976 c527               	cmp CursorX	; did it wrap?
-    87  0978 d004               	bne nc5		; nope
-    88  097a a94f               	lda #79		; wrap to right edge
-    89  097c 8527               	sta CursorX
-    90                          nc5:
-    91  097e 20690a             	jsr veraquery	; middle left
-    92  0981 202a0a             	jsr addif
-    93                          
-    94  0984 a52f               	lda kx
-    95  0986 8527               	sta CursorX
-    96  0988 e627               	inc CursorX	; middle right
-    97  098a a950               	lda #80
-    98  098c c527               	cmp CursorX	; did it wrap?
-    99  098e d004               	bne nc6		; nope
-   100  0990 a900               	lda #0
-   101  0992 8527               	sta CursorX	; wrap to left edge
-   102                          nc6:
-   103  0994 20690a             	jsr veraquery
-   104  0997 202a0a             	jsr addif
-   105                          	
-   106  099a a52f               	lda kx		; reset to middle
-   107  099c 8527               	sta CursorX
-   108  099e a530               	lda ky
-   109  09a0 8528               	sta CursorY
-   110                          	
-   111  09a2 e628               	inc CursorY	; lower left
-   112  09a4 a93c               	lda #60
-   113  09a6 c528               	cmp CursorY	; did it wrap?
-   114  09a8 d004               	bne nc7		; nope
-   115  09aa a900               	lda #0
-   116  09ac 8528               	sta CursorY	; wrap to top
-   117                          nc7:
-   118  09ae c627               	dec CursorX
-   119  09b0 a9ff               	lda #255
-   120  09b2 c527               	cmp CursorX	; did it wrap?
-   121  09b4 d004               	bne nc8		; nope
-   122  09b6 a94f               	lda #79
-   123  09b8 8527               	sta CursorX	; wrap to right edge
-   124                          nc8:
-   125  09ba 20690a             	jsr veraquery 	; lower left
-   126  09bd 202a0a             	jsr addif
-   127                          
-   128  09c0 e627               	inc CursorX	; bottom middle
-   129  09c2 a950               	lda #80
-   130  09c4 c527               	cmp CursorX	; did it wrap?
-   131  09c6 d004               	bne nc9		; nope
-   132  09c8 a900               	lda #0		; wrap to left
-   133  09ca 8527               	sta CursorX
-   134                          nc9:
-   135  09cc 20690a             	jsr veraquery	; bottom middle
-   136  09cf 202a0a             	jsr addif
-   137                          
-   138  09d2 e627               	inc CursorX	; bottom right
-   139  09d4 a950               	lda #80
-   140  09d6 c527               	cmp CursorX	; did it wrap?
-   141  09d8 d002               	bne nc10	; nope 
-   142  09da a900               	lda #0		; wrap to left
-   143                          nc10:
-   144  09dc 20690a             	jsr veraquery
-   145  09df 202a0a             	jsr addif
+    84  0975 a52f               	lda kx		; reset to middle
+    85  0977 8527               	sta CursorX
+    86  0979 a530               	lda ky
+    87  097b 8528               	sta CursorY
+    88                          
+    89  097d c627               	dec CursorX	; middle left
+    90  097f a9ff               	lda #255
+    91  0981 c527               	cmp CursorX	; did it wrap?
+    92  0983 d004               	bne nc5		; nope
+    93  0985 a94f               	lda #79		; wrap to right edge
+    94  0987 8527               	sta CursorX
+    95                          nc5:
+    96                          	;jsr veraquery	; middle left
+    97  0989 207a0a             	jsr hmget
+    98  098c 20350a             	jsr addif
+    99                          
+   100  098f a52f               	lda kx
+   101  0991 8527               	sta CursorX
+   102  0993 e627               	inc CursorX	; middle right
+   103  0995 a950               	lda #80
+   104  0997 c527               	cmp CursorX	; did it wrap?
+   105  0999 d004               	bne nc6		; nope
+   106  099b a900               	lda #0
+   107  099d 8527               	sta CursorX	; wrap to left edge
+   108                          nc6:
+   109                          	;jsr veraquery
+   110  099f 207a0a             	jsr hmget
+   111  09a2 20350a             	jsr addif
+   112                          	
+   113  09a5 a52f               	lda kx		; reset to middle
+   114  09a7 8527               	sta CursorX
+   115  09a9 a530               	lda ky
+   116  09ab 8528               	sta CursorY
+   117                          	
+   118  09ad e628               	inc CursorY	; lower left
+   119  09af a93c               	lda #60
+   120  09b1 c528               	cmp CursorY	; did it wrap?
+   121  09b3 d004               	bne nc7		; nope
+   122  09b5 a900               	lda #0
+   123  09b7 8528               	sta CursorY	; wrap to top
+   124                          nc7:
+   125  09b9 c627               	dec CursorX
+   126  09bb a9ff               	lda #255
+   127  09bd c527               	cmp CursorX	; did it wrap?
+   128  09bf d004               	bne nc8		; nope
+   129  09c1 a94f               	lda #79
+   130  09c3 8527               	sta CursorX	; wrap to right edge
+   131                          nc8:
+   132                          	;jsr veraquery 	; lower left
+   133  09c5 207a0a             	jsr hmget
+   134  09c8 20350a             	jsr addif
+   135                          
+   136  09cb e627               	inc CursorX	; bottom middle
+   137  09cd a950               	lda #80
+   138  09cf c527               	cmp CursorX	; did it wrap?
+   139  09d1 d004               	bne nc9		; nope
+   140  09d3 a900               	lda #0		; wrap to left
+   141  09d5 8527               	sta CursorX
+   142                          nc9:
+   143                          	;jsr veraquery	; bottom middle
+   144  09d7 207a0a             	jsr hmget
+   145  09da 20350a             	jsr addif
    146                          
-   147                          	; that should be all the neighbors added, find
-   148                          	; out if we live or die
-   149                          
-   150  09e2 a92a               	lda #$2A
-   151  09e4 c53d               	cmp kc		; is the existing cell living or dead
-   152  09e6 f01b               	beq living
-   153  09e8 a903               	lda #3		; only thing a dead cell can do is be born on 3 count
-   154  09ea c531               	cmp nn
-   155  09ec f003               	beq born
-   156  09ee 4c1e0a             	jmp eol
-   157                          born:
-   158  09f1 a92a               	lda #$2A	; make cell live
-   159  09f3 853b               	sta sc
-   160  09f5 a52f               	lda kx
-   161  09f7 8539               	sta sx
-   162  09f9 a530               	lda ky
-   163  09fb 853a               	sta sy
-   164  09fd 20b508             	jsr storeaction
-   165  0a00 4c1e0a             	jmp eol
-   166                          
-   167                          living:
-   168  0a03 a902               	lda #2
-   169  0a05 c531               	cmp nn
-   170  0a07 f015               	beq eol		; this one survived
-   171  0a09 a903               	lda #3
-   172  0a0b c531               	cmp nn
-   173  0a0d f00f               	beq eol		; as did this one   
-   174  0a0f a920               	lda #32		; make cell die
-   175  0a11 853b               	sta sc
-   176  0a13 a52f               	lda kx
-   177  0a15 8539               	sta sx
-   178  0a17 a530               	lda ky
-   179  0a19 853a               	sta sy
-   180  0a1b 20b508             	jsr storeaction	;unlucky 
-   181                          
-   182                          
-   183                          
-   184                          	;;;
-   185                          
-   186                          eol:
-   187  0a1e a52f               	lda kx		; restore CursorX and CursorY 
-   188  0a20 8527               	sta CursorX	; to continue reading screen loop
-   189  0a22 a530               	lda ky
-   190  0a24 8528               	sta CursorY
-   191  0a26 fa                 	plx
-   192  0a27 7a                 	ply
-   193  0a28 68                 	pla
-   194  0a29 60                 	rts
+   147  09dd e627               	inc CursorX	; bottom right
+   148  09df a950               	lda #80
+   149  09e1 c527               	cmp CursorX	; did it wrap?
+   150  09e3 d002               	bne nc10	; nope 
+   151  09e5 a900               	lda #0		; wrap to left
+   152                          nc10:
+   153                          	;jsr veraquery
+   154  09e7 207a0a             	jsr hmget
+   155  09ea 20350a             	jsr addif
+   156                          
+   157                          	; that should be all the neighbors added, find
+   158                          	; out if we live or die
+   159                          
+   160  09ed a92a               	lda #$2A
+   161  09ef c53d               	cmp kc		; is the existing cell living or dead
+   162  09f1 f01b               	beq living
+   163  09f3 a903               	lda #3		; only thing a dead cell can do is be born on 3 count
+   164  09f5 c531               	cmp nn
+   165  09f7 f003               	beq born
+   166  09f9 4c290a             	jmp eol
+   167                          born:
+   168  09fc a92a               	lda #$2A	; make cell live
+   169  09fe 853b               	sta sc
+   170  0a00 a52f               	lda kx
+   171  0a02 8539               	sta sx
+   172  0a04 a530               	lda ky
+   173  0a06 853a               	sta sy
+   174  0a08 20c008             	jsr storeaction
+   175  0a0b 4c290a             	jmp eol
+   176                          
+   177                          living:
+   178  0a0e a902               	lda #2
+   179  0a10 c531               	cmp nn
+   180  0a12 f015               	beq eol		; this one survived
+   181  0a14 a903               	lda #3
+   182  0a16 c531               	cmp nn
+   183  0a18 f00f               	beq eol		; as did this one   
+   184  0a1a a920               	lda #32		; make cell die
+   185  0a1c 853b               	sta sc
+   186  0a1e a52f               	lda kx
+   187  0a20 8539               	sta sx
+   188  0a22 a530               	lda ky
+   189  0a24 853a               	sta sy
+   190  0a26 20c008             	jsr storeaction	;unlucky 
+   191                          
+   192                          
+   193                          
+   194                          	;;;
    195                          
-   196                          addif:
-   197  0a2a a92a               	lda #$2A
-   198  0a2c c53c               	cmp qc
-   199  0a2e d002               	bne addifreturn
-   200  0a30 e631               	inc nn		; add neighbor
-   201                          addifreturn:
-   202  0a32 60                 	rts
+   196                          eol:
+   197  0a29 a52f               	lda kx		; restore CursorX and CursorY 
+   198  0a2b 8527               	sta CursorX	; to continue reading screen loop
+   199  0a2d a530               	lda ky
+   200  0a2f 8528               	sta CursorY
+   201  0a31 fa                 	plx
+   202  0a32 7a                 	ply
+   203  0a33 68                 	pla
+   204  0a34 60                 	rts
+   205                          
+   206                          addif:
+   207  0a35 a92a               	lda #$2A
+   208  0a37 c53c               	cmp qc
+   209  0a39 d002               	bne addifreturn
+   210  0a3b e631               	inc nn		; add neighbor
+   211                          addifreturn:
+   212  0a3d 60                 	rts
 
 ; ******** Source: gol1.asm
-    97                          		; the main algorithm
-    98                          
-    99                          fullscreen:
-   100  0a33 a94f               	lda #79
-   101  0a35 8527               	sta CursorX
-   102  0a37 a93b               	lda #59
-   103  0a39 8528               	sta CursorY
-   104                          goleft:
-   105  0a3b 20460a             	jsr column
-   106  0a3e c627               	dec CursorX
-   107  0a40 d0f9               	bne goleft
-   108  0a42 20460a             	jsr column
-   109  0a45 60                 	rts		; Return to caller
-   110                          
-   111                          column:
-   112  0a46 20550a             	jsr veraprint
-   113  0a49 c628               	dec CursorY
-   114  0a4b d0f9               	bne column
-   115  0a4d 20550a             	jsr veraprint
-   116  0a50 a93b               	lda #59
-   117  0a52 8528               	sta CursorY
-   118  0a54 60                 	rts
-   119                          	
-   120                          
-   121                          veraprint:
-   122  0a55 48                 	pha
-   123  0a56 5a                 	phy
-   124  0a57 da                 	phx
-   125                          	; set the memory addr
-   126  0a58 20820a             	jsr sexy
-   127                          	; send the char to VERA at x y
-   128  0a5b a429               	ldy Character
-   129  0a5d 8c239f             	sty veradat
-   130  0a60 a42a               	ldy Colour
-   131  0a62 8c239f             	sty veradat
-   132  0a65 fa                 	plx
-   133  0a66 7a                 	ply
-   134  0a67 68                 	pla
-   135  0a68 60                 	rts
-   136                          
-   137                          veraquery:
-   138  0a69 48                 	pha
-   139  0a6a 5a                 	phy
-   140  0a6b da                 	phx
-   141                          	; set the memory addr
-   142  0a6c 20820a             	jsr sexy
-   143                          	; send the char to VERA at x y
-   144  0a6f ad239f             	lda veradat
-   145  0a72 853c               	sta qc		; store the char we got back
-   146  0a74 fa                 	plx
-   147  0a75 7a                 	ply
-   148  0a76 68                 	pla
-   149  0a77 60                 	rts
-   150                          
-   151                          SetVeraADDR:             
-   152                                                  
-   153                          		; A contains vera Hi addr,
-   154                          		; Y contains vera mid
-   155                          		; X contains vera lo
-   156                          
-   157  0a78 8d229f                             sta verahi
-   158  0a7b 8c219f                             sty veramid
-   159  0a7e 8e209f                             stx veralo
-   160  0a81 60                 		rts
-   161                          
-   162                          sexy:
-   163  0a82 a527               		lda CursorX
-   164  0a84 0a                 		asl  ; mul 2
-   165  0a85 aa                 		tax ; put lo byte into x
-   166  0a86 a900               		lda #0
-   167  0a88 2a                 		rol  ; get 9th bit
-   168  0a89 6528               		adc CursorY ; add Y*256 effectivly
-   169  0a8b a8                 		tay ; put mi byte into y
-   170  0a8c a910               		lda #$10 ; set incremement
-   171  0a8e 20780a             		jsr SetVeraADDR
-   172  0a91 60                 		rts
-   173                          
-   174  0a92 54455354494e4720....string !pet	"testing x y coords - waiting for enter...",13,0
+   110                          		; the main algorithm
+   111                          
+
+; ******** Source: hmxy.inc
+     1                          ; a hma xy routine for storing grids in HMA instead of VERA
+     2                          ;
+     3                          ; jsr to hmxy to set hma addr for the co-ordinate
+     4                          ;
+     5                          ; recommended to set for Y=row , X=0 
+     6                          ;
+     7                          ; in that way, can index indirect following for all X
+     8                          ;
+     9                          ; but will calc an addr anyway
+    10                          
+    11                          hmxy:
+    12  0a3e a528               	lda CursorY
+    13  0a40 aa                 	tax
+    14  0a41 8540               	sta scratchpad
+    15  0a43 a901               	lda #1
+    16  0a45 2540               	and scratchpad
+    17  0a47 f014               	beq even
+    18                          odd:
+    19  0a49 8a                 	txa
+    20  0a4a 4a                 	lsr
+    21  0a4b 18                 	clc
+    22  0a4c 69b0               	adc #$B0
+    23  0a4e 8561               	sta mklh
+    24  0a50 a950               	lda #$50
+    25  0a52 8560               	sta mkll
+    26  0a54 a527               	lda CursorX
+    27  0a56 6560               	adc mkll
+    28  0a58 8560               	sta mkll
+    29  0a5a 4c6a0a             	jmp hmxyend
+    30                          even:
+    31  0a5d 8a                 	txa
+    32  0a5e 4a                 	lsr
+    33  0a5f 18                 	clc
+    34  0a60 69b0               	adc #$B0
+    35  0a62 8561               	sta mklh
+    36  0a64 a900               	lda #00
+    37  0a66 6527               	adc CursorX
+    38  0a68 8560               	sta mkll
+    39                          hmxyend:
+    40  0a6a 60                 	rts
+    41                          
+    42                          
+    43                          hmstore:
+    44  0a6b da                 	phx
+    45  0a6c 5a                 	phy
+    46  0a6d 48                 	pha
+    47  0a6e 203e0a             	jsr hmxy
+    48  0a71 98                 	tya 
+    49  0a72 a000               	ldy #0
+    50  0a74 9160               	sta (mkll),y
+    51  0a76 68                 	pla
+    52  0a77 7a                 	ply
+    53  0a78 fa                 	plx
+    54  0a79 60                 	rts
+    55                          
+    56                          hmget:
+    57  0a7a da                 	phx
+    58  0a7b 5a                 	phy
+    59  0a7c 48                 	pha
+    60  0a7d 203e0a             	jsr hmxy
+    61  0a80 a000               	ldy #0
+    62  0a82 b160               	lda (mkll),y
+    63  0a84 853c               	sta qc
+    64  0a86 68                 	pla
+    65  0a87 7a                 	ply
+    66  0a88 fa                 	plx
+    67  0a89 60                 	rts
+    68                          
+
+; ******** Source: gol1.asm
+   112                          		; hma grid handler
+   113                          
+   114                          fullscreen:
+   115  0a8a a94f               	lda #79
+   116  0a8c 8527               	sta CursorX
+   117  0a8e a93b               	lda #59
+   118  0a90 8528               	sta CursorY
+   119                          goleft:
+   120  0a92 209d0a             	jsr column
+   121  0a95 c627               	dec CursorX
+   122  0a97 d0f9               	bne goleft
+   123  0a99 209d0a             	jsr column
+   124  0a9c 60                 	rts		; Return to caller
+   125                          
+   126                          column:
+   127  0a9d 20ac0a             	jsr veraprint
+   128  0aa0 c628               	dec CursorY
+   129  0aa2 d0f9               	bne column
+   130  0aa4 20ac0a             	jsr veraprint
+   131  0aa7 a93b               	lda #59
+   132  0aa9 8528               	sta CursorY
+   133  0aab 60                 	rts
+   134                          	
+   135                          
+   136                          veraprint:
+   137  0aac 48                 	pha
+   138  0aad 5a                 	phy
+   139  0aae da                 	phx
+   140                          	; set the memory addr
+   141  0aaf 20dc0a             	jsr sexy
+   142                          	; send the char to VERA at x y
+   143  0ab2 a429               	ldy Character
+   144  0ab4 8c239f             	sty veradat
+   145  0ab7 206b0a             	jsr hmstore		; surrogate grid layout in HMA
+   146  0aba a42a               	ldy Colour
+   147  0abc 8c239f             	sty veradat
+   148  0abf fa                 	plx
+   149  0ac0 7a                 	ply
+   150  0ac1 68                 	pla
+   151  0ac2 60                 	rts
+   152                          
+   153                          veraquery:
+   154  0ac3 48                 	pha
+   155  0ac4 5a                 	phy
+   156  0ac5 da                 	phx
+   157                          	; set the memory addr
+   158  0ac6 20dc0a             	jsr sexy
+   159                          	; send the char to VERA at x y
+   160  0ac9 ad239f             	lda veradat
+   161  0acc 853c               	sta qc		; store the char we got back
+   162  0ace fa                 	plx
+   163  0acf 7a                 	ply
+   164  0ad0 68                 	pla
+   165  0ad1 60                 	rts
+   166                          
+   167                          SetVeraADDR:             
+   168                                                  
+   169                          		; A contains vera Hi addr,
+   170                          		; Y contains vera mid
+   171                          		; X contains vera lo
+   172                          
+   173  0ad2 8d229f                             sta verahi
+   174  0ad5 8c219f                             sty veramid
+   175  0ad8 8e209f                             stx veralo
+   176  0adb 60                 		rts
+   177                          
+   178                          sexy:
+   179  0adc a527               		lda CursorX
+   180  0ade 0a                 		asl  ; mul 2
+   181  0adf aa                 		tax ; put lo byte into x
+   182  0ae0 a900               		lda #0
+   183  0ae2 2a                 		rol  ; get 9th bit
+   184  0ae3 6528               		adc CursorY ; add Y*256 effectivly
+   185  0ae5 a8                 		tay ; put mi byte into y
+   186  0ae6 a910               		lda #$10 ; set incremement
+   187  0ae8 20d20a             		jsr SetVeraADDR
+   188  0aeb 60                 		rts
+   189                          
+   190  0aec 54455354494e4720....string !pet	"testing x y coords - waiting for enter...",13,0
 
 ; ******** Source: grid.inc
      1                          .actions
-     2  0abd 2a0f0a             !byte $2A,$0F,$0A
-     3  0ac0 2a100a             !byte $2A,$10,$0A
-     4  0ac3 2a110a             !byte $2A,$11,$0A
-     5  0ac6 2a150a             !byte $2A,$15,$0A
-     6  0ac9 2a160a             !byte $2A,$16,$0A
-     7  0acc 2a170a             !byte $2A,$17,$0A
-     8  0acf 2a0d0c             !byte $2A,$0D,$0C
-     9  0ad2 2a120c             !byte $2A,$12,$0C
-    10  0ad5 2a140c             !byte $2A,$14,$0C
-    11  0ad8 2a190c             !byte $2A,$19,$0C
-    12  0adb 2a0d0d             !byte $2A,$0D,$0D
-    13  0ade 2a120d             !byte $2A,$12,$0D
-    14  0ae1 2a140d             !byte $2A,$14,$0D
-    15  0ae4 2a190d             !byte $2A,$19,$0D
-    16  0ae7 2a0d0e             !byte $2A,$0D,$0E
-    17  0aea 2a120e             !byte $2A,$12,$0E
-    18  0aed 2a140e             !byte $2A,$14,$0E
-    19  0af0 2a190e             !byte $2A,$19,$0E
-    20  0af3 2a0f0f             !byte $2A,$0F,$0F
-    21  0af6 2a100f             !byte $2A,$10,$0F
-    22  0af9 2a110f             !byte $2A,$11,$0F
-    23  0afc 2a150f             !byte $2A,$15,$0F
-    24  0aff 2a160f             !byte $2A,$16,$0F
-    25  0b02 2a170f             !byte $2A,$17,$0F
-    26  0b05 2a0f11             !byte $2A,$0F,$11
-    27  0b08 2a1011             !byte $2A,$10,$11
-    28  0b0b 2a1111             !byte $2A,$11,$11
-    29  0b0e 2a1511             !byte $2A,$15,$11
-    30  0b11 2a1611             !byte $2A,$16,$11
-    31  0b14 2a1711             !byte $2A,$17,$11
-    32  0b17 2a0d12             !byte $2A,$0D,$12
-    33  0b1a 2a1212             !byte $2A,$12,$12
-    34  0b1d 2a1412             !byte $2A,$14,$12
-    35  0b20 2a1912             !byte $2A,$19,$12
-    36  0b23 2a0d13             !byte $2A,$0D,$13
-    37  0b26 2a1213             !byte $2A,$12,$13
-    38  0b29 2a1413             !byte $2A,$14,$13
-    39  0b2c 2a1913             !byte $2A,$19,$13
-    40  0b2f 2a0d14             !byte $2A,$0D,$14
-    41  0b32 2a1214             !byte $2A,$12,$14
-    42  0b35 2a1414             !byte $2A,$14,$14
-    43  0b38 2a1914             !byte $2A,$19,$14
-    44  0b3b 2a0f16             !byte $2A,$0F,$16
-    45  0b3e 2a1016             !byte $2A,$10,$16
-    46  0b41 2a1116             !byte $2A,$11,$16
-    47  0b44 2a1516             !byte $2A,$15,$16
-    48  0b47 2a1616             !byte $2A,$16,$16
-    49  0b4a 2a1716             !byte $2A,$17,$16
-    50  0b4d 2a1024             !byte $2A,$10,$24
-    51  0b50 2a2e24             !byte $2A,$2E,$24
-    52  0b53 2a2f24             !byte $2A,$2F,$24
-    53  0b56 2a1125             !byte $2A,$11,$25
-    54  0b59 2a2d25             !byte $2A,$2D,$25
-    55  0b5c 2a2f25             !byte $2A,$2F,$25
-    56  0b5f 2a0f26             !byte $2A,$0F,$26
-    57  0b62 2a1026             !byte $2A,$10,$26
-    58  0b65 2a1126             !byte $2A,$11,$26
-    59  0b68 2a2f26             !byte $2A,$2F,$26
-    60  0b6b 2a1f36             !byte $2A,$1F,$36
-    61  0b6e 2a2037             !byte $2A,$20,$37
-    62  0b71 2a1e38             !byte $2A,$1E,$38
-    63  0b74 2a1f38             !byte $2A,$1F,$38
-    64  0b77 2a2038             !byte $2A,$20,$38
-    65  0b7a ffffff             !byte $FF,$FF,$FF
+     2  0b17 2a0f0a             !byte $2A,$0F,$0A
+     3  0b1a 2a100a             !byte $2A,$10,$0A
+     4  0b1d 2a110a             !byte $2A,$11,$0A
+     5  0b20 2a150a             !byte $2A,$15,$0A
+     6  0b23 2a160a             !byte $2A,$16,$0A
+     7  0b26 2a170a             !byte $2A,$17,$0A
+     8  0b29 2a0d0c             !byte $2A,$0D,$0C
+     9  0b2c 2a120c             !byte $2A,$12,$0C
+    10  0b2f 2a140c             !byte $2A,$14,$0C
+    11  0b32 2a190c             !byte $2A,$19,$0C
+    12  0b35 2a0d0d             !byte $2A,$0D,$0D
+    13  0b38 2a120d             !byte $2A,$12,$0D
+    14  0b3b 2a140d             !byte $2A,$14,$0D
+    15  0b3e 2a190d             !byte $2A,$19,$0D
+    16  0b41 2a0d0e             !byte $2A,$0D,$0E
+    17  0b44 2a120e             !byte $2A,$12,$0E
+    18  0b47 2a140e             !byte $2A,$14,$0E
+    19  0b4a 2a190e             !byte $2A,$19,$0E
+    20  0b4d 2a0f0f             !byte $2A,$0F,$0F
+    21  0b50 2a100f             !byte $2A,$10,$0F
+    22  0b53 2a110f             !byte $2A,$11,$0F
+    23  0b56 2a150f             !byte $2A,$15,$0F
+    24  0b59 2a160f             !byte $2A,$16,$0F
+    25  0b5c 2a170f             !byte $2A,$17,$0F
+    26  0b5f 2a0f11             !byte $2A,$0F,$11
+    27  0b62 2a1011             !byte $2A,$10,$11
+    28  0b65 2a1111             !byte $2A,$11,$11
+    29  0b68 2a1511             !byte $2A,$15,$11
+    30  0b6b 2a1611             !byte $2A,$16,$11
+    31  0b6e 2a1711             !byte $2A,$17,$11
+    32  0b71 2a0d12             !byte $2A,$0D,$12
+    33  0b74 2a1212             !byte $2A,$12,$12
+    34  0b77 2a1412             !byte $2A,$14,$12
+    35  0b7a 2a1912             !byte $2A,$19,$12
+    36  0b7d 2a0d13             !byte $2A,$0D,$13
+    37  0b80 2a1213             !byte $2A,$12,$13
+    38  0b83 2a1413             !byte $2A,$14,$13
+    39  0b86 2a1913             !byte $2A,$19,$13
+    40  0b89 2a0d14             !byte $2A,$0D,$14
+    41  0b8c 2a1214             !byte $2A,$12,$14
+    42  0b8f 2a1414             !byte $2A,$14,$14
+    43  0b92 2a1914             !byte $2A,$19,$14
+    44  0b95 2a0f16             !byte $2A,$0F,$16
+    45  0b98 2a1016             !byte $2A,$10,$16
+    46  0b9b 2a1116             !byte $2A,$11,$16
+    47  0b9e 2a1516             !byte $2A,$15,$16
+    48  0ba1 2a1616             !byte $2A,$16,$16
+    49  0ba4 2a1716             !byte $2A,$17,$16
+    50  0ba7 2a1024             !byte $2A,$10,$24
+    51  0baa 2a2e24             !byte $2A,$2E,$24
+    52  0bad 2a2f24             !byte $2A,$2F,$24
+    53  0bb0 2a1125             !byte $2A,$11,$25
+    54  0bb3 2a2d25             !byte $2A,$2D,$25
+    55  0bb6 2a2f25             !byte $2A,$2F,$25
+    56  0bb9 2a0f26             !byte $2A,$0F,$26
+    57  0bbc 2a1026             !byte $2A,$10,$26
+    58  0bbf 2a1126             !byte $2A,$11,$26
+    59  0bc2 2a2f26             !byte $2A,$2F,$26
+    60  0bc5 2a1f36             !byte $2A,$1F,$36
+    61  0bc8 2a2037             !byte $2A,$20,$37
+    62  0bcb 2a1e38             !byte $2A,$1E,$38
+    63  0bce 2a1f38             !byte $2A,$1F,$38
+    64  0bd1 2a2038             !byte $2A,$20,$38
+    65  0bd4 ffffff             !byte $FF,$FF,$FF
 
 ; ******** Source: gol1.asm
-   176                          
+   192                          

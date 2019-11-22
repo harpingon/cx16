@@ -19,11 +19,13 @@ queryleft:
 	rts		; Return to caller
 
 querycolumn:
-	jsr veraquery
+	;jsr veraquery
+	jsr hmget
 	jsr neighbors
 	dec CursorY
 	bne querycolumn
-	jsr veraquery
+	;jsr veraquery
+	jsr hmget
 	jsr neighbors	; make sure to do the final character
 	lda #59
 	sta CursorY
@@ -55,7 +57,8 @@ nc1:
 	lda #59
 	sta CursorY
 nc2:
-	jsr veraquery 	; top left
+	;jsr veraquery 	; top left
+	jsr hmget
 	jsr addif	
 	inc CursorX	; top middle
 	lda #80
@@ -64,7 +67,8 @@ nc2:
 	lda #0
 	sta CursorX	; wrap to left edge
 nc3:
-	jsr veraquery	; top middle
+	;jsr veraquery	; top middle
+	jsr hmget
 	jsr addif
 	inc CursorX	; top right
 	lda #80
@@ -73,7 +77,8 @@ nc3:
 	lda #0
 	sta CursorX	; wrap to left edge
 nc4:
-	jsr veraquery	; top right
+	;jsr veraquery	; top right
+	jsr hmget
 	jsr addif
 
 	lda kx		; reset to middle
@@ -88,7 +93,8 @@ nc4:
 	lda #79		; wrap to right edge
 	sta CursorX
 nc5:
-	jsr veraquery	; middle left
+	;jsr veraquery	; middle left
+	jsr hmget
 	jsr addif
 
 	lda kx
@@ -100,7 +106,8 @@ nc5:
 	lda #0
 	sta CursorX	; wrap to left edge
 nc6:
-	jsr veraquery
+	;jsr veraquery
+	jsr hmget
 	jsr addif
 	
 	lda kx		; reset to middle
@@ -122,7 +129,8 @@ nc7:
 	lda #79
 	sta CursorX	; wrap to right edge
 nc8:
-	jsr veraquery 	; lower left
+	;jsr veraquery 	; lower left
+	jsr hmget
 	jsr addif
 
 	inc CursorX	; bottom middle
@@ -132,7 +140,8 @@ nc8:
 	lda #0		; wrap to left
 	sta CursorX
 nc9:
-	jsr veraquery	; bottom middle
+	;jsr veraquery	; bottom middle
+	jsr hmget
 	jsr addif
 
 	inc CursorX	; bottom right
@@ -141,7 +150,8 @@ nc9:
 	bne nc10	; nope 
 	lda #0		; wrap to left
 nc10:
-	jsr veraquery
+	;jsr veraquery
+	jsr hmget
 	jsr addif
 
 	; that should be all the neighbors added, find

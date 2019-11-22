@@ -35,6 +35,10 @@ sc = zr+27		; store char in list
 qc = zr+28		; vera character query result
 kc = zr+29		; original cell value          
 
+hml = zr+30		; hma grid low
+hmh = zr+31		; hma grid high
+scratchpad = zr+32	; scratchpad
+
 !src "vera.inc"
 *=$0801			; Assembled code should start at $0801
 			; (where BASIC programs start)
@@ -72,8 +76,17 @@ start:
 	sta Colour
 
 	; 37 , 30
+	; 10 , 16
 
 	jsr readlist
+
+	lda #10
+	sta CursorY
+	lda #16
+	sta CursorX
+	jsr hmget
+
+	; jmp $FFFF
 
 	jsr CHRIN
 	jsr CHRIN
@@ -95,6 +108,8 @@ neverend:
 !src "makelist.inc"		; initialise and allow adding to the action list
 	
 !src "algo.inc"			; the main algorithm
+
+!src "hmxy.inc"			; hma grid handler
 
 fullscreen:
 	lda #79
@@ -127,6 +142,7 @@ veraprint:
 	; send the char to VERA at x y
 	ldy Character
 	sty veradat
+	jsr hmstore		; surrogate grid layout in HMA
 	ldy Colour
 	sty veradat
 	plx
